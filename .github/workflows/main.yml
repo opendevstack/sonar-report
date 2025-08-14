@@ -27,7 +27,7 @@ jobs:
           docker run -d --rm --name sonarqube \
             -p 9000:9000 \
             -e SONAR_ES_BOOTSTRAP_CHECKS_DISABLE=true \
-            sonarqube:community-10.6.0
+            sonarqube:community-latest
       
       - name: Wait for sonar to be ready (GREEN)
         run: |
