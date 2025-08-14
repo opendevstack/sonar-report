@@ -1,0 +1,79 @@
+name: API health check
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  sonarqube-api:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: SonarQube requirements
+        run: |
+          sudo sysctl -w vm.max_map_count=262144
+          sudo sysctl -w fs.file-max=131072
+          ulimit -n 131072 || true
+          ulimit -u 8192 || true
+
+      - name: SonarQube Setup on Docker
+        run: |
+          docker pull sonarqube:community
+          docker run -d --rm --name sonarqube \
+            -p 9000:9000 \
+            -e SONAR_ES_BOOTSTRAP_CHECKS_DISABLE=true \
+            sonarqube:community-10.6.0
+      
+      - name: Wait for sonar to be ready (GREEN)
+        run: |
+          set -e
+          for i in $(seq 1 60); do
+            STATUS=$(curl -s http://localhost:9000/api/system/health | jq -r '.health' || echo "UNKNOWN")
+            echo "Health: $STATUS"
+            if [ "$STATUS" = "GREEN" ]; then
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "SonarQube didn t make it at time"
+          docker logs --tail 200 sonarqube || true
+          exit 1
+
+      # credenciales: usa secrets si existen; si no, cae a admin/admin
+      - name: Prepare creds
+        id: creds
+        env:
+          U: ${{ secrets.SONAR_USER || 'admin' }}
+          P: ${{ secrets.SONAR_PASSWORD || 'admin' }}
+        run: |
+          echo "user=$U" >> $GITHUB_OUTPUT
+          echo "pass=$P" >> $GITHUB_OUTPUT
+
+      # ----- TUS CALLS -----
+      - name: GET /api/system/status
+        env: 
+          U: ${{ steps.creds.outputs.user }}
+          P: ${{ steps.creds.outputs.pass }}
+        run: |
+          CODE=$(curl -sS -o /dev/null -w "%{http_code}" -u "$U:$P" "http://127.0.0.1:9000/api/system/status")
+          echo "→ $CODE"; test "$CODE" -eq 200
+
+      - name: GET /api/projects/search
+        env: 
+          U: ${{ steps.creds.outputs.user }}
+          P: ${{ steps.creds.outputs.pass }}
+        run: |
+          CODE=$(curl -sS -o /dev/null -w "%{http_code}" -u "$U:$P" "http://127.0.0.1:9000/api/projects/search")
+          echo "→ $CODE"; test "$CODE" -eq 200
+
+      # Limpieza SIEMPRE (el --rm lo borra al parar)
+      - name: Teardown
+        if: always()
+        run: |
+          docker logs --tail 50 sonarqube || true
+          docker stop sonarqube || true
