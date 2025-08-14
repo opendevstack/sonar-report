@@ -44,7 +44,6 @@ jobs:
           docker logs --tail 200 sonarqube || true
           exit 1
 
-      # credenciales: usa secrets si existen; si no, cae a admin/admin
       - name: Prepare creds
         id: creds
         env:
@@ -54,7 +53,6 @@ jobs:
           echo "user=$U" >> $GITHUB_OUTPUT
           echo "pass=$P" >> $GITHUB_OUTPUT
 
-      # ----- TUS CALLS -----
       - name: GET /api/system/status
         env: 
           U: ${{ steps.creds.outputs.user }}
@@ -71,7 +69,6 @@ jobs:
           CODE=$(curl -sS -o /dev/null -w "%{http_code}" -u "$U:$P" "http://127.0.0.1:9000/api/projects/search")
           echo "→ $CODE"; test "$CODE" -eq 200
 
-      # Limpieza SIEMPRE (el --rm lo borra al parar)
       - name: Teardown
         if: always()
         run: |
