@@ -49,6 +49,8 @@ jobs:
           sonar.projectKey=dummy.project
           sonar.projectName=Dummy Project
           sonar.sources=.
+          sonar.exclusions=**/*
+          sonar.token=${SONAR_TOKEN}
           sonar.host.url=http://localhost:9000
           EOF
 
@@ -66,6 +68,7 @@ jobs:
           ./sonar-scanner-*/bin/sonar-scanner \
             -Dsonar.projectKey=dummy.project \
             -Dsonar.sources=. \
+            -Dsonar.exclusions=**/* \
             -Dsonar.host.url=http://localhost:9000 \
             -Dsonar.login=${{ env.SONAR_TOKEN }}
             
