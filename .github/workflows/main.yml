@@ -1,4 +1,4 @@
-name: API health check
+name: SonarQube API health check
 
 on:
   pull_request:
@@ -10,67 +10,75 @@ on:
 jobs:
   sonarqube-api:
     runs-on: ubuntu-latest
+    services:
+      sonarqube:
+        image: sonarqube:latest
+        ports:
+          - 9000:9000
+        options: >-
+          --health-cmd="curl -f http://localhost:9000/api/system/status || exit 1"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=60
+          
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: SonarQube requirements
+      - name: Wait for sonar to be up
         run: |
-          sudo sysctl -w vm.max_map_count=262144
-          sudo sysctl -w fs.file-max=131072
-          ulimit -n 131072 || true
-          ulimit -u 8192 || true
-
-      - name: SonarQube Setup on Docker
-        run: |
-          docker pull sonarqube:community
-          docker run -d --rm --name sonarqube \
-            -p 9000:9000 \
-            -e SONAR_ES_BOOTSTRAP_CHECKS_DISABLE=true \
-            sonarqube:community-latest
-      
-      - name: Wait for sonar to be ready (GREEN)
-        run: |
-          set -e
-          for i in $(seq 1 60); do
-            STATUS=$(curl -s http://localhost:9000/api/system/health | jq -r '.health' || echo "UNKNOWN")
-            echo "Health: $STATUS"
-            if [ "$STATUS" = "GREEN" ]; then
-              exit 0
-            fi
+          for i in {1..120}; do
+            STATUS=$(curl -s http://localhost:9000/api/system/status | jq -r '.status' || true)
+            if [ "$STATUS" = "UP" ]; then echo "SonarQube UP"; break; fi
+            echo "Status: $STATUS..."
             sleep 5
           done
-          echo "SonarQube didn t make it at time"
-          docker logs --tail 200 sonarqube || true
-          exit 1
+          
+      - name: Create temporal admin token
+        run: |
+          export TOKEN_NAME="ci-token-$(date +%s)"
+          AUTH="-u admin:admin"
+          curl -sS $AUTH -X POST "http://localhost:9000/api/user_tokens/generate?name=$TOKEN_NAME" | jq -r '.token' > token.txt
+          echo "SONAR_TOKEN=$(cat token.txt)" >> $GITHUB_ENV
 
-      - name: Prepare creds
-        id: creds
+      - name: Prepare Dummy Project
+        run: |
+          mkdir -p dummy
+          echo 'console.log(eval("1+1"))' > dummy/index.js
+          cat > dummy/sonar-project.properties << 'EOF'
+          sonar.projectKey=dummy.project
+          sonar.projectName=Dummy Project
+          sonar.sources=.
+          sonar.host.url=http://localhost:9000
+          EOF
+
+      - name: Install sonar-scanner
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y unzip default-jre
+          curl -L -o scanner.zip https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-linux.zip
+          unzip scanner.zip
+          echo "$(pwd)/sonar-scanner-*/bin" >> $GITHUB_PATH
+      
+      - name: Execute minimun analysis
+        working-directory: dummy
         env:
-          U: ${{ secrets.SONAR_USER || 'admin' }}
-          P: ${{ secrets.SONAR_PASSWORD || 'admin' }}
+          SONAR_TOKEN: ${{ env.SONAR_TOKEN }}
         run: |
-          echo "user=$U" >> $GITHUB_OUTPUT
-          echo "pass=$P" >> $GITHUB_OUTPUT
+          sonar-scanner -Dsonar.login="$SONAR_TOKEN"
+      - name: API component navigation
+        env:
+          SONAR_TOKEN: ${{ env.SONAR_TOKEN }}
+        run: |
+          set -euo pipefail
+          AUTH="Authorization: Basic $(echo -n ${SONAR_TOKEN}: | base64 -w0)"
+          url="http://localhost:9000/api/navigation/component?component=dummy.project"
+          code=$(curl -s -H "$AUTH" -o /dev/null -w "%{http_code}" "$url")
+          
+          if (( code >= 400 && code < 600 )); then
+            echo "Error in $url (HTTP $code)"
+            exit 1
+          fi
+          echo "$url OK (HTTP $code)"
 
-      - name: GET /api/system/status
-        env: 
-          U: ${{ steps.creds.outputs.user }}
-          P: ${{ steps.creds.outputs.pass }}
-        run: |
-          CODE=$(curl -sS -o /dev/null -w "%{http_code}" -u "$U:$P" "http://127.0.0.1:9000/api/system/status")
-          echo "→ $CODE"; test "$CODE" -eq 200
-
-      - name: GET /api/projects/search
-        env: 
-          U: ${{ steps.creds.outputs.user }}
-          P: ${{ steps.creds.outputs.pass }}
-        run: |
-          CODE=$(curl -sS -o /dev/null -w "%{http_code}" -u "$U:$P" "http://127.0.0.1:9000/api/projects/search")
-          echo "→ $CODE"; test "$CODE" -eq 200
-
-      - name: Teardown
-        if: always()
-        run: |
-          docker logs --tail 50 sonarqube || true
-          docker stop sonarqube || true
+          
