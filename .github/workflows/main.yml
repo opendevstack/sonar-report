@@ -61,12 +61,14 @@ jobs:
           SCANNER_DIR=$(find . -type d -name "sonar-scanner-*" | head -n 1)
           echo "$SCANNER_DIR/bin" >> $GITHUB_PATH
       
-      - name: Execute minimun analysis
-        working-directory: dummy
-        env:
-          SONAR_TOKEN: ${{ env.SONAR_TOKEN }}
+      - name: Run Sonar Scanner
         run: |
-          sonar-scanner -Dsonar.login="$SONAR_TOKEN"
+          ./sonar-scanner-*/bin/sonar-scanner \
+            -Dsonar.projectKey=dummy.project \
+            -Dsonar.sources=. \
+            -Dsonar.host.url=http://localhost:9000 \
+            -Dsonar.login=${{ env.SONAR_TOKEN }}
+            
       - name: API component navigation
         env:
           SONAR_TOKEN: ${{ env.SONAR_TOKEN }}
