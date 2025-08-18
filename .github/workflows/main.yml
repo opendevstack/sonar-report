@@ -78,10 +78,10 @@ jobs:
         run: |
           set -euo pipefail
           AUTH="Authorization: Basic $(echo -n ${SONAR_TOKEN}: | base64 -w0)"
-          code=$(curl -s -H "$AUTH" -o /dev/null -w "%{http_code}" "$url")
 
           #/api/navigation/component?component=
           url="http://localhost:9000/api/navigation/component?component=dummy.project"
+          code=$(curl -s -H "$AUTH" -o /dev/null -w "%{http_code}" "$url")
           if (( code >= 400 && code < 600 )); then
             echo "Error in $url (HTTP $code)"
             exit 1
@@ -90,6 +90,7 @@ jobs:
 
           #/api/measures/component?metricKeys=reliability_rating,software_quality_maintainability_rating,security_rating,security_review_rating&component=
           url="http://localhost:9000/api/measures/component?metricKeys=reliability_rating,software_quality_maintainability_rating,security_rating,security_review_rating&component=dummy.project"
+          code=$(curl -s -H "$AUTH" -o /dev/null -w "%{http_code}" "$url")
           if (( code >= 400 && code < 600 )); then
             echo "Error in $url (HTTP $code)"
             exit 1
@@ -98,6 +99,7 @@ jobs:
 
           #/api/qualitygates/project_status?projectKey=
           url="http://localhost:9000/api/qualitygates/project_status?projectKey=dummy.project"
+          code=$(curl -s -H "$AUTH" -o /dev/null -w "%{http_code}" "$url")
           if (( code >= 400 && code < 600 )); then
             echo "Error in $url (HTTP $code)"
             exit 1
@@ -106,6 +108,7 @@ jobs:
 
           #/api/measures/component?metricKeys=duplicated_lines_density,comment_lines_density,ncloc,complexity,cognitive_complexity,coverage&component=
           url="http://localhost:9000/api/measures/component?metricKeys=duplicated_lines_density,comment_lines_density,ncloc,complexity,cognitive_complexity,coverage&component=dummy.project"
+          code=$(curl -s -H "$AUTH" -o /dev/null -w "%{http_code}" "$url")
           if (( code >= 400 && code < 600 )); then
             echo "Error in $url (HTTP $code)"
             exit 1
@@ -114,6 +117,7 @@ jobs:
 
           #/api/measures/component?metricKeys=duplicated_lines_density,comment_lines_density,ncloc,complexity,cognitive_complexity,coverage&component=
           url="http://localhost:9000/api/measures/component?metricKeys=duplicated_lines_density,comment_lines_density,ncloc,complexity,cognitive_complexity,coverage&component=dummy.project"
+          code=$(curl -s -H "$AUTH" -o /dev/null -w "%{http_code}" "$url")
           if (( code >= 400 && code < 600 )); then
             echo "Error in $url (HTTP $code)"
             exit 1
@@ -122,6 +126,7 @@ jobs:
 
           #/api/measures/component?metricKeys=reliability_remediation_effort,security_remediation_effort,sqale_index&component=
           url="http://localhost:9000/api/measures/component?metricKeys=reliability_remediation_effort,security_remediation_effort,sqale_index&component=dummy.project"
+          code=$(curl -s -H "$AUTH" -o /dev/null -w "%{http_code}" "$url")
           if (( code >= 400 && code < 600 )); then
             echo "Error in $url (HTTP $code)"
             exit 1
@@ -130,6 +135,7 @@ jobs:
 
           #/api/measures/component?metricKeys=ncloc_language_distribution&component=
           url="http://localhost:9000/api/measures/component?metricKeys=ncloc_language_distribution&component=dummy.project"
+          code=$(curl -s -H "$AUTH" -o /dev/null -w "%{http_code}" "$url")
           if (( code >= 400 && code < 600 )); then
             echo "Error in $url (HTTP $code)"
             exit 1
@@ -138,6 +144,7 @@ jobs:
 
           #/api/security_reports/show?standard=sonarsourceSecurity&project=
           url="http://localhost:9000/api/security_reports/show?standard=sonarsourceSecurity&project=dummy.project"
+          code=$(curl -s -H "$AUTH" -o /dev/null -w "%{http_code}" "$url")
           if (( code >= 400 && code < 600 )); then
             echo "Error in $url (HTTP $code)"
             exit 1
@@ -146,6 +153,7 @@ jobs:
 
           #/api/hotspots/search?status=TO_REVIEW&ps=500&pageIndex=%d&project=
           url="http://localhost:9000/api/hotspots/search?status=TO_REVIEW&ps=500&pageIndex=%d&project=dummy.project"
+          code=$(curl -s -H "$AUTH" -o /dev/null -w "%{http_code}" "$url")
           if (( code >= 400 && code < 600 )); then
             echo "Error in $url (HTTP $code)"
             exit 1
@@ -154,6 +162,7 @@ jobs:
 
           #/api/issues/search?types=BUG&facets=severities&componentKeys=
           url="http://localhost:9000/api/issues/search?types=BUG&facets=severities&componentKeys=dummy.project"
+          code=$(curl -s -H "$AUTH" -o /dev/null -w "%{http_code}" "$url")
           if (( code >= 400 && code < 600 )); then
             echo "Error in $url (HTTP $code)"
             exit 1
@@ -162,6 +171,7 @@ jobs:
 
           #/api/issues/search?types=VULNERABILITY&facets=severities&componentKeys=
           url="http://localhost:9000/api/issues/search?types=VULNERABILITY&facets=severities&componentKeys=dummy.project"
+          code=$(curl -s -H "$AUTH" -o /dev/null -w "%{http_code}" "$url")
           if (( code >= 400 && code < 600 )); then
             echo "Error in $url (HTTP $code)"
             exit 1
@@ -170,6 +180,7 @@ jobs:
 
           #/api/issues/search?types=CODE_SMELL&facets=severities&componentKeys=
           url="http://localhost:9000/api/issues/search?types=CODE_SMELL&facets=severities&componentKeys=dummy.project"
+          code=$(curl -s -H "$AUTH" -o /dev/null -w "%{http_code}" "$url")
           if (( code >= 400 && code < 600 )); then
             echo "Error in $url (HTTP $code)"
             exit 1
@@ -178,6 +189,7 @@ jobs:
 
           #/api/issues/search?issueStatuses=OPEN&ps=500&pageIndex=%d&componentKeys=
           url="http://localhost:9000/api/issues/search?issueStatuses=OPEN&ps=500&pageIndex=%d&componentKeys=dummy.project"
+          code=$(curl -s -H "$AUTH" -o /dev/null -w "%{http_code}" "$url")
           if (( code >= 400 && code < 600 )); then
             echo "Error in $url (HTTP $code)"
             exit 1
