@@ -52,13 +52,14 @@ jobs:
           sonar.host.url=http://localhost:9000
           EOF
 
-      - name: Install sonar-scanner
+      - name: Install Sonar Scanner
         run: |
           sudo apt-get update -y
           sudo apt-get install -y unzip default-jre
           curl -L -o scanner.zip https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-linux.zip
           unzip scanner.zip
-          echo "$(pwd)/sonar-scanner-*/bin" >> $GITHUB_PATH
+          SCANNER_DIR=$(find . -type d -name "sonar-scanner-*" | head -n 1)
+          echo "$SCANNER_DIR/bin" >> $GITHUB_PATH
       
       - name: Execute minimun analysis
         working-directory: dummy
