@@ -161,8 +161,8 @@ jobs:
           fi
           echo "$url OK (HTTP $code)"
 
-          #/api/hotspots/search?status=TO_REVIEW&ps=500&pageIndex=%d&project=
-          url="http://localhost:9000/api/hotspots/search?status=TO_REVIEW&ps=500&pageIndex=%d&project=dummy.project"
+          #/api/hotspots/search?status=TO_REVIEW&ps=500&pageIndex=0&project=
+          url="http://localhost:9000/api/hotspots/search?status=TO_REVIEW&ps=500&pageIndex=0&project=dummy.project"
           code=$(curl -sS -H "$AUTH" -o "$response" -w "%{http_code}" "$url")
           if (( code >= 400 && code < 600 )); then
             echo "Error in $url (HTTP $code)"
@@ -209,8 +209,8 @@ jobs:
           fi
           echo "$url OK (HTTP $code)"
 
-          #/api/issues/search?issueStatuses=OPEN&ps=500&pageIndex=%d&componentKeys=
-          url="http://localhost:9000/api/issues/search?issueStatuses=OPEN&ps=500&pageIndex=%d&componentKeys=dummy.project"
+          #/api/issues/search?issueStatuses=OPEN&ps=500&pageIndex=0&componentKeys=
+          url="http://localhost:9000/api/issues/search?issueStatuses=OPEN&ps=500&pageIndex=0&componentKeys=dummy.project"
           code=$(curl -sS -H "$AUTH" -o "$response" -w "%{http_code}" "$url")
           if (( code >= 400 && code < 600 )); then
             echo "Error in $url (HTTP $code)"
