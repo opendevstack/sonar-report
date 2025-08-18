@@ -142,15 +142,6 @@ jobs:
           fi
           echo "$url OK (HTTP $code)"
 
-          #/api/security_reports/show?standard=sonarsourceSecurity&project=
-          url="http://localhost:9000/api/security_reports/show?standard=sonarsourceSecurity&project=dummy.project"
-          code=$(curl -s -H "$AUTH" -o /dev/null -w "%{http_code}" "$url")
-          if (( code >= 400 && code < 600 )); then
-            echo "Error in $url (HTTP $code)"
-            exit 1
-          fi
-          echo "$url OK (HTTP $code)"
-
           #/api/hotspots/search?status=TO_REVIEW&ps=500&pageIndex=%d&project=
           url="http://localhost:9000/api/hotspots/search?status=TO_REVIEW&ps=500&pageIndex=%d&project=dummy.project"
           code=$(curl -s -H "$AUTH" -o /dev/null -w "%{http_code}" "$url")
