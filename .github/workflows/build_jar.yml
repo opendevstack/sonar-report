@@ -1,0 +1,74 @@
+name: Build JAR on Release
+
+on:
+  release:
+    types: [published]   # Solo al publicar una release
+    workflow_dispatch:
+
+jobs:
+  build:
+    name: Build and Attach Executable JAR
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write  
+      
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - id: detect-java
+        name: Detect Java from pom.xml
+        run: |
+          set -euo pipefail
+          FILE=pdf-generator/pom.xml
+          # Intenta leer las propiedades estándar del compiler plugin
+          REL=$(mvn -f "$FILE" -q -DforceStdout help:evaluate -Dexpression=maven.compiler.release || true)
+          SRC=$(mvn -f "$FILE" -q -DforceStdout help:evaluate -Dexpression=maven.compiler.source || true)
+          TGT=$(mvn -f "$FILE" -q -DforceStdout help:evaluate -Dexpression=maven.compiler.target || true)
+          
+          clean() { echo "$1" | grep -E '^[0-9]+$' || true; }
+          REL=$(clean "$REL"); SRC=$(clean "$SRC"); TGT=$(clean "$TGT")
+  
+          VER="${REL:-${TGT:-${SRC:-17}}}"
+          echo "version=$VER" >> "$GITHUB_OUTPUT"
+          echo "Detected Java version: $VER"
+
+      - name: Set up Temurin JDK (auto)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ steps.detect-java.outputs.version }}
+          cache: maven
+
+      - name: Build with Maven (pdf-generator)
+        run: |
+          set -euo pipefail
+          mvn -f pdf-generator/pom.xml -B -DskipTests clean package
+          JAR_WITH_DEPS=$(ls -1 pdf-generator/target/*-jar-with-dependencies.jar | head -n 1)
+          if [ -z "${JAR_WITH_DEPS:-}" ]; then
+            echo "No se encontró el JAR con dependencias (sufijo -jar-with-dependencies.jar)"; exit 1
+          fi
+          echo "ARTIFACT_PATH=${JAR_WITH_DEPS}" >> "$GITHUB_ENV"
+
+      - name: Rename artifact using release tag (or manual)
+        run: |
+          TAG="${{ github.event.release.tag_name || 'manual' }}"
+          OUT="sonar-report-${TAG}.jar"
+          cp "$ARTIFACT_PATH" "$OUT"
+          echo "OUT=${OUT}" >> "$GITHUB_ENV"
+
+      - name: Upload workflow artifact (optional)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.OUT }}
+          path: ${{ env.OUT }}
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Attach JAR to GitHub Release
+        if: ${{ github.event_name == 'release' }}
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.OUT }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

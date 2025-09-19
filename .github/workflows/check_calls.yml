@@ -1,0 +1,222 @@
+name: SonarQube API health check
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  sonarqube-api:
+    runs-on: ubuntu-latest
+    services:
+      sonarqube:
+        image: sonarqube:latest
+        ports:
+          - 9000:9000
+        options: >-
+          --health-cmd="curl -f http://localhost:9000/api/system/status || exit 1"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=60
+          
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Wait for sonar to be up
+        run: |
+          for i in {1..120}; do
+            STATUS=$(curl -s http://localhost:9000/api/system/status | jq -r '.status' || true)
+            if [ "$STATUS" = "UP" ]; then echo "SonarQube UP"; break; fi
+            echo "Status: $STATUS..."
+            sleep 5
+          done
+          
+      - name: Create temporal admin token
+        run: |
+          export TOKEN_NAME="ci-token-$(date +%s)"
+          AUTH="-u admin:admin"
+          curl -sS $AUTH -X POST "http://localhost:9000/api/user_tokens/generate?name=$TOKEN_NAME" | jq -r '.token' > token.txt
+          echo "SONAR_TOKEN=$(cat token.txt)" >> $GITHUB_ENV
+
+      - name: Prepare Dummy Project
+        run: |
+          mkdir -p dummy
+          echo 'console.log(eval("1+1"))' > dummy/index.js
+          cat > dummy/sonar-project.properties << 'EOF'
+          sonar.projectKey=dummy.project
+          sonar.projectName=Dummy Project
+          sonar.sources=.
+          sonar.exclusions=**/*
+          sonar.token=${SONAR_TOKEN}
+          sonar.host.url=http://localhost:9000
+          EOF
+
+      - name: Install Sonar Scanner
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y unzip default-jre
+          curl -L -o scanner.zip https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-linux.zip
+          unzip scanner.zip
+          SCANNER_DIR=$(find . -type d -name "sonar-scanner-*" | head -n 1)
+          echo "$SCANNER_DIR/bin" >> $GITHUB_PATH
+      
+      - name: Run Sonar Scanner
+        run: |
+          ./sonar-scanner-*/bin/sonar-scanner \
+            -Dsonar.projectKey=dummy.project \
+            -Dsonar.sources=. \
+            -Dsonar.exclusions=**/* \
+            -Dsonar.host.url=http://localhost:9000 \
+            -Dsonar.login=${{ env.SONAR_TOKEN }}
+            
+      - name: API Testing
+        env:
+          SONAR_TOKEN: ${{ env.SONAR_TOKEN }}
+        run: |
+          set -euo pipefail
+          AUTH="Authorization: Basic $(echo -n ${SONAR_TOKEN}: | base64 -w0)"
+          response=$(mktemp)
+
+          #/api/navigation/component?component=
+          url="http://localhost:9000/api/navigation/component?component=dummy.project"
+          code=$(curl -sS -H "$AUTH" -o "$response" -w "%{http_code}" "$url")
+          if (( code >= 400 && code < 600 )); then
+            echo "Error in $url (HTTP $code)"
+            echo "--- Body ---"
+            cat "$response"
+            echo "------------"
+            exit 1
+          fi
+          echo "$url OK (HTTP $code)"
+
+          #/api/measures/component?metricKeys=reliability_rating,software_quality_maintainability_rating,security_rating,security_review_rating&component=
+          url="http://localhost:9000/api/measures/component?metricKeys=reliability_rating,software_quality_maintainability_rating,security_rating,security_review_rating&component=dummy.project"
+          code=$(curl -sS -H "$AUTH" -o "$response" -w "%{http_code}" "$url")
+          if (( code >= 400 && code < 600 )); then
+            echo "Error in $url (HTTP $code)"
+            echo "--- Body ---"
+            cat "$response"
+            echo "------------"
+            exit 1
+          fi
+          echo "$url OK (HTTP $code)"
+
+          #/api/qualitygates/project_status?projectKey=
+          url="http://localhost:9000/api/qualitygates/project_status?projectKey=dummy.project"
+          code=$(curl -sS -H "$AUTH" -o "$response" -w "%{http_code}" "$url")
+          if (( code >= 400 && code < 600 )); then
+            echo "Error in $url (HTTP $code)"
+            echo "--- Body ---"
+            cat "$response"
+            echo "------------"
+            exit 1
+          fi
+          echo "$url OK (HTTP $code)"
+
+          #/api/measures/component?metricKeys=duplicated_lines_density,comment_lines_density,ncloc,complexity,cognitive_complexity,coverage&component=
+          url="http://localhost:9000/api/measures/component?metricKeys=duplicated_lines_density,comment_lines_density,ncloc,complexity,cognitive_complexity,coverage&component=dummy.project"
+          code=$(curl -sS -H "$AUTH" -o "$response" -w "%{http_code}" "$url")
+          if (( code >= 400 && code < 600 )); then
+            echo "Error in $url (HTTP $code)"
+            echo "--- Body ---"
+            cat "$response"
+            echo "------------"
+            exit 1
+          fi
+          echo "$url OK (HTTP $code)"
+
+          #/api/measures/component?metricKeys=duplicated_lines_density,comment_lines_density,ncloc,complexity,cognitive_complexity,coverage&component=
+          url="http://localhost:9000/api/measures/component?metricKeys=duplicated_lines_density,comment_lines_density,ncloc,complexity,cognitive_complexity,coverage&component=dummy.project"
+          code=$(curl -sS -H "$AUTH" -o "$response" -w "%{http_code}" "$url")
+          if (( code >= 400 && code < 600 )); then
+            echo "Error in $url (HTTP $code)"
+            echo "--- Body ---"
+            cat "$response"
+            echo "------------"
+            exit 1
+          fi
+          echo "$url OK (HTTP $code)"
+
+          #/api/measures/component?metricKeys=reliability_remediation_effort,security_remediation_effort,sqale_index&component=
+          url="http://localhost:9000/api/measures/component?metricKeys=reliability_remediation_effort,security_remediation_effort,sqale_index&component=dummy.project"
+          code=$(curl -sS -H "$AUTH" -o "$response" -w "%{http_code}" "$url")
+          if (( code >= 400 && code < 600 )); then
+            echo "Error in $url (HTTP $code)"
+            exit 1
+          fi
+          echo "$url OK (HTTP $code)"
+
+          #/api/measures/component?metricKeys=ncloc_language_distribution&component=
+          url="http://localhost:9000/api/measures/component?metricKeys=ncloc_language_distribution&component=dummy.project"
+          code=$(curl -sS -H "$AUTH" -o "$response" -w "%{http_code}" "$url")
+          if (( code >= 400 && code < 600 )); then
+            echo "Error in $url (HTTP $code)"
+            echo "--- Body ---"
+            cat "$response"
+            echo "------------"
+            exit 1
+          fi
+          echo "$url OK (HTTP $code)"
+
+          #/api/hotspots/search?status=TO_REVIEW&ps=500&pageIndex=0&project=
+          url="http://localhost:9000/api/hotspots/search?status=TO_REVIEW&ps=500&pageIndex=0&project=dummy.project"
+          code=$(curl -sS -H "$AUTH" -o "$response" -w "%{http_code}" "$url")
+          if (( code >= 400 && code < 600 )); then
+            echo "Error in $url (HTTP $code)"
+            echo "--- Body ---"
+            cat "$response"
+            echo "------------"
+            exit 1
+          fi
+          echo "$url OK (HTTP $code)"
+
+          #/api/issues/search?types=BUG&facets=severities&componentKeys=
+          url="http://localhost:9000/api/issues/search?types=BUG&facets=severities&componentKeys=dummy.project"
+          code=$(curl -sS -H "$AUTH" -o "$response" -w "%{http_code}" "$url")
+          if (( code >= 400 && code < 600 )); then
+            echo "Error in $url (HTTP $code)"
+            echo "--- Body ---"
+            cat "$response"
+            echo "------------"
+            exit 1
+          fi
+          echo "$url OK (HTTP $code)"
+
+          #/api/issues/search?types=VULNERABILITY&facets=severities&componentKeys=
+          url="http://localhost:9000/api/issues/search?types=VULNERABILITY&facets=severities&componentKeys=dummy.project"
+          code=$(curl -sS -H "$AUTH" -o "$response" -w "%{http_code}" "$url")
+          if (( code >= 400 && code < 600 )); then
+            echo "Error in $url (HTTP $code)"
+            echo "--- Body ---"
+            cat "$response"
+            echo "------------"
+            exit 1
+          fi
+          echo "$url OK (HTTP $code)"
+
+          #/api/issues/search?types=CODE_SMELL&facets=severities&componentKeys=
+          url="http://localhost:9000/api/issues/search?types=CODE_SMELL&facets=severities&componentKeys=dummy.project"
+          code=$(curl -sS -H "$AUTH" -o "$response" -w "%{http_code}" "$url")
+          if (( code >= 400 && code < 600 )); then
+            echo "Error in $url (HTTP $code)"
+            echo "--- Body ---"
+            cat "$response"
+            echo "------------"
+            exit 1
+          fi
+          echo "$url OK (HTTP $code)"
+
+          #/api/issues/search?issueStatuses=OPEN&ps=500&pageIndex=0&componentKeys=
+          url="http://localhost:9000/api/issues/search?issueStatuses=OPEN&ps=500&pageIndex=0&componentKeys=dummy.project"
+          code=$(curl -sS -H "$AUTH" -o "$response" -w "%{http_code}" "$url")
+          if (( code >= 400 && code < 600 )); then
+            echo "Error in $url (HTTP $code)"
+            echo "--- Body ---"
+            cat "$response"
+            echo "------------"
+            exit 1
+          fi
+          echo "$url OK (HTTP $code)"
