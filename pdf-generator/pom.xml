@@ -44,7 +44,7 @@
                 <configuration>
                     <archive>
                         <manifest>
-                            <mainClass>GenerateCNESReport</mainClass> 
+                            <mainClass>GenerateSonarReport</mainClass> 
                         </manifest>
                     </archive>
                     <descriptorRefs>

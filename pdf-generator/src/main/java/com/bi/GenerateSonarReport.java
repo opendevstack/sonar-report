@@ -11,24 +11,57 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLParameters;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
+
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
 
 
-public class GenerateCNESReport {
+public class GenerateSonarReport {
+
+    private static HttpClient createUnsafeHttpClient() {
+        try {
+            TrustManager[] trustAll = new TrustManager[]{
+                new X509TrustManager() {
+                    public java.security.cert.X509Certificate[] getAcceptedIssuers() { return new java.security.cert.X509Certificate[0]; }
+                    public void checkClientTrusted(java.security.cert.X509Certificate[] certs, String authType) {}
+                    public void checkServerTrusted(java.security.cert.X509Certificate[] certs, String authType) {}
+                }
+            };
+
+            SSLContext sslContext = SSLContext.getInstance("TLS");
+            sslContext.init(null, trustAll, new java.security.SecureRandom());
+
+            SSLParameters sslParams = sslContext.getDefaultSSLParameters();
+            sslParams.setEndpointIdentificationAlgorithm(null);
+
+            return HttpClient.newBuilder()
+                    .sslContext(sslContext)
+                    .sslParameters(sslParams)
+                    .build();
+
+        } catch (java.security.NoSuchAlgorithmException | java.security.KeyManagementException e) {
+            throw new IllegalStateException("The insecure HttpClient couldn't be created", e);
+        }
+    }
     
     public static JSONObject fetchDataFromURL(String url, String call, String token, String projectKey) throws IOException, InterruptedException {
-        HttpClient client = HttpClient.newHttpClient();
+        HttpClient client = createUnsafeHttpClient();
         String encodedProjectKey = URLEncoder.encode(projectKey, StandardCharsets.UTF_8);
         String fullURL = String.format("%s%s%s", url, call, encodedProjectKey);
+        
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(fullURL))
                 .header("Authorization", "Bearer " + token)
                 .build();
-
+        
+        
         HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
         JSONObject json = new JSONObject(response.body());
@@ -36,7 +69,7 @@ public class GenerateCNESReport {
         if (response.statusCode() >= 200 && response.statusCode() < 300) {
             return json;
         } else {
-            throw new IOException("Error al obtener datos de la URL: Código de estado " + response.statusCode() + ", Cuerpo: " + response.body());
+            throw new IOException("Error at obtaining data from the URL: Status Code " + response.statusCode() + ", Body: " + response.body());
         }
     }
 
@@ -49,14 +82,13 @@ public class GenerateCNESReport {
         String apiUrl = args[0]; 
         String authToken = args[1]; 
         String project = args[2]; 
-        
+
         // We create the initial pdf
         PDFReportWriter pdf = new PDFReportWriter();
         JSONObject data = null;
         JSONArray dataArray = null;
         try {
-            
-            data = fetchDataFromURL(apiUrl, "api/navigation/component?component=", authToken, project);
+            data = fetchDataFromURL(apiUrl, "/api/navigation/component?component=", authToken, project);
         } catch (IOException | InterruptedException e) {
             System.err.println("Error at doing the HTTP petition: " + e.getMessage());
         }
@@ -115,7 +147,7 @@ public class GenerateCNESReport {
         data = null;
         try {
             
-            data = fetchDataFromURL(apiUrl, "api/measures/component?metricKeys=reliability_rating,software_quality_maintainability_rating,security_rating,security_review_rating&component=", authToken, project);
+            data = fetchDataFromURL(apiUrl, "/api/measures/component?metricKeys=reliability_rating,software_quality_maintainability_rating,security_rating,security_review_rating&component=", authToken, project);
             data = data.getJSONObject("component");
             
         } catch (IOException | InterruptedException e) {
@@ -149,7 +181,7 @@ public class GenerateCNESReport {
 
         try {
             
-            data = fetchDataFromURL(apiUrl, "api/qualitygates/project_status?projectKey=", authToken, project);
+            data = fetchDataFromURL(apiUrl, "/api/qualitygates/project_status?projectKey=", authToken, project);
             data = data.getJSONObject("projectStatus");
             
         } catch (IOException | InterruptedException e) {
@@ -166,7 +198,7 @@ public class GenerateCNESReport {
 
         try {
             
-            data = fetchDataFromURL(apiUrl, "api/measures/component?metricKeys=duplicated_lines_density,comment_lines_density,ncloc,complexity,cognitive_complexity,coverage&component=", authToken, project);
+            data = fetchDataFromURL(apiUrl, "/api/measures/component?metricKeys=duplicated_lines_density,comment_lines_density,ncloc,complexity,cognitive_complexity,coverage&component=", authToken, project);
             data = data.getJSONObject("component");
             
         } catch (IOException | InterruptedException e) {
@@ -185,6 +217,7 @@ public class GenerateCNESReport {
         metricIndex.put("cognitive_complexity", 5);
         measuresList = data.getJSONArray("measures");
         measures = new String[6];
+        Arrays.fill(measures, "0");
 
         for (int i = 0; i < measuresList.length(); i++) {
             JSONObject measure = measuresList.getJSONObject(i);
@@ -211,7 +244,7 @@ public class GenerateCNESReport {
 
         try {
             
-            data = fetchDataFromURL(apiUrl, "api/measures/component?metricKeys=duplicated_lines_density,comment_lines_density,ncloc,complexity,cognitive_complexity,coverage&component=", authToken, project);
+            data = fetchDataFromURL(apiUrl, "/api/measures/component?metricKeys=duplicated_lines_density,comment_lines_density,ncloc,complexity,cognitive_complexity,coverage&component=", authToken, project);
             data = data.getJSONObject("component");
             
         } catch (IOException | InterruptedException e) {
@@ -256,7 +289,7 @@ public class GenerateCNESReport {
 
         try {
             
-            data = fetchDataFromURL(apiUrl, "api/measures/component?metricKeys=reliability_remediation_effort,security_remediation_effort,sqale_index&component=", authToken, project);
+            data = fetchDataFromURL(apiUrl, "/api/measures/component?metricKeys=reliability_remediation_effort,security_remediation_effort,sqale_index&component=", authToken, project);
             data = data.getJSONObject("component");
             
         } catch (IOException | InterruptedException e) {
@@ -298,7 +331,7 @@ public class GenerateCNESReport {
 
         try {
             
-            data = fetchDataFromURL(apiUrl, "api/measures/component?metricKeys=ncloc_language_distribution&component=", authToken, project);
+            data = fetchDataFromURL(apiUrl, "/api/measures/component?metricKeys=ncloc_language_distribution&component=", authToken, project);
             data = data.getJSONObject("component");
             
         } catch (IOException | InterruptedException e) {
@@ -334,7 +367,7 @@ public class GenerateCNESReport {
 
         try {
             
-            data = fetchDataFromURL(apiUrl, "api/security_reports/show?standard=sonarsourceSecurity&project=", authToken, project);
+            data = fetchDataFromURL(apiUrl, "/api/security_reports/show?standard=sonarsourceSecurity&project=", authToken, project);
             dataArray = data.getJSONArray("categories");
             
         } catch (IOException | InterruptedException e) {
@@ -405,7 +438,7 @@ public class GenerateCNESReport {
             while ((pageIndex - 1) * 500 < total) {
                 data = fetchDataFromURL(
                     apiUrl,
-                    String.format("api/hotspots/search?status=TO_REVIEW&ps=500&pageIndex=%d&project=", pageIndex),
+                    String.format("/api/hotspots/search?status=TO_REVIEW&ps=500&pageIndex=%d&project=", pageIndex),
                     authToken,
                     project
                 );
@@ -485,7 +518,7 @@ public class GenerateCNESReport {
 
         try {
             
-            data = fetchDataFromURL(apiUrl, "api/issues/search?types=BUG&facets=severities&componentKeys=", authToken, project);
+            data = fetchDataFromURL(apiUrl, "/api/issues/search?types=BUG&facets=severities&componentKeys=", authToken, project);
             
         } catch (IOException | InterruptedException e) {
             System.err.println("Error at doing the HTTP petition: " + e.getMessage());
@@ -497,7 +530,7 @@ public class GenerateCNESReport {
 
         try {
             
-            data = fetchDataFromURL(apiUrl, "api/issues/search?types=VULNERABILITY&facets=severities&componentKeys=", authToken, project);
+            data = fetchDataFromURL(apiUrl, "/api/issues/search?types=VULNERABILITY&facets=severities&componentKeys=", authToken, project);
             
         } catch (IOException | InterruptedException e) {
             System.err.println("Error at doing the HTTP petition: " + e.getMessage());
@@ -509,7 +542,7 @@ public class GenerateCNESReport {
 
         try {
             
-            data = fetchDataFromURL(apiUrl, "api/issues/search?types=CODE_SMELL&facets=severities&componentKeys=", authToken, project);
+            data = fetchDataFromURL(apiUrl, "/api/issues/search?types=CODE_SMELL&facets=severities&componentKeys=", authToken, project);
             
         } catch (IOException | InterruptedException e) {
             System.err.println("Error at doing the HTTP petition: " + e.getMessage());
@@ -532,7 +565,7 @@ public class GenerateCNESReport {
             while ((pageIndex - 1) * 500 < total) {
                 data = fetchDataFromURL(
                     apiUrl,
-                    String.format("api/issues/search?issueStatuses=OPEN&ps=500&pageIndex=%d&componentKeys=", pageIndex),
+                    String.format("/api/issues/search?issueStatuses=OPEN&ps=500&pageIndex=%d&componentKeys=", pageIndex),
                     authToken,
                     project
                 );
@@ -603,7 +636,7 @@ public class GenerateCNESReport {
         }
         pdf.insertIndexAtBeginning();
         pdf.addCoverPage("SonarQube Report", "Generated for "+ project);
-        pdf.save("reportes.pdf");
+        pdf.save("sonarqube-report.pdf");
     }
 
     private static String minsToDaysHoursMins(int minutes) {
@@ -619,10 +652,11 @@ public class GenerateCNESReport {
         try {
             return String.valueOf(jsonArray.getJSONObject(index).getString("count"));
         } catch (JSONException e) {
-            System.err.println("Error al obtener 'count' en el índice " + index + ": " + e.getMessage());
+            System.err.println("Error at obtaning 'count' in the index " + index + ": " + e.getMessage());
             return ""; 
         }
     }
     return "";
 }
+
 }
