@@ -68,9 +68,9 @@ public class PDFReportWriter {
     public PDFReportWriter() throws IOException {
         document = new PDDocument();
         this.indexPages = new ArrayList<>();
-        InputStream imageStream = getClass().getClassLoader().getResourceAsStream("fonts/CrimsonPro-Regular.ttf");
+        InputStream imageStream = getClass().getClassLoader().getResourceAsStream("fonts/NotoSerif-Regular.ttf");
         bodyFont = PDType0Font.load(document, imageStream);
-        imageStream = getClass().getClassLoader().getResourceAsStream("fonts/CrimsonPro-Bold.ttf");
+        imageStream = getClass().getClassLoader().getResourceAsStream("fonts/NotoSerif-Bold.ttf");
         tittle1Font = PDType0Font.load(document, imageStream);
         tittle2Font = tittle1Font;
         tittle3Font = tittle1Font;
@@ -139,23 +139,33 @@ public class PDFReportWriter {
     
     private List<String> divideTextInLines(String text, PDFont font, float size, float maxWidth) throws IOException {
         List<String> lines = new ArrayList<>();
+        if (text == null || text.isEmpty()) {
+            lines.add("");
+            return lines;
+        }
+
         String[] words = text.split(" ");
         StringBuilder currentLine = new StringBuilder();
 
         for (String word : words) {
-            String test = currentLine.length() == 0 ? word : currentLine + " " + word;
-            float width = font.getStringWidth(test) / 1000 * size;
 
-            if (width > maxWidth) {
-                if (currentLine.length() > 0) {
-                    lines.add(currentLine.toString());
-                    currentLine = new StringBuilder(word);
+            List<String> parts = splitBySlash(word);
+
+            for (String part : parts) {
+                String candidate = currentLine.length() == 0 ? part : currentLine + " " + part;
+                float width = font.getStringWidth(candidate) / 1000 * size;
+
+                if (width <= maxWidth) {
+                    currentLine = new StringBuilder(candidate);
                 } else {
-                    lines.add(word);
-                    currentLine = new StringBuilder();
+                    if (currentLine.length() > 0) {
+                        lines.add(currentLine.toString());
+                        currentLine = new StringBuilder(part);
+                    } else {
+                        lines.add(part);
+                        currentLine = new StringBuilder();
+                    }
                 }
-            } else {
-                currentLine = new StringBuilder(test);
             }
         }
 
@@ -164,6 +174,25 @@ public class PDFReportWriter {
         }
 
         return lines;
+    }
+
+    private List<String> splitBySlash(String word) {
+        List<String> result = new ArrayList<>();
+        StringBuilder current = new StringBuilder();
+
+        for (char c : word.toCharArray()) {
+            current.append(c);
+            if (c == '/') {
+                result.add(current.toString());
+                current = new StringBuilder();
+            }
+        }
+
+        if (current.length() > 0) {
+            result.add(current.toString());
+        }
+
+        return result;
     }
 
     private void addNewPage() throws IOException {

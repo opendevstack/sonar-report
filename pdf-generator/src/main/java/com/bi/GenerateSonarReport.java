@@ -24,8 +24,10 @@ import org.json.JSONObject;
 
 public class GenerateSonarReport {
 
+    // Creates an HttpClient that accepts all SSL certificates and disables hostname verification.
     private static HttpClient createUnsafeHttpClient() {
         try {
+            // Defines a trust manager that does not validate certificate chains.
             TrustManager[] trustAll = new TrustManager[]{
                 new X509TrustManager() {
                     public java.security.cert.X509Certificate[] getAcceptedIssuers() { return new java.security.cert.X509Certificate[0]; }
@@ -34,12 +36,15 @@ public class GenerateSonarReport {
                 }
             };
 
+            // Initializes the SSL context with the permissive trust manager.
             SSLContext sslContext = SSLContext.getInstance("TLS");
             sslContext.init(null, trustAll, new java.security.SecureRandom());
 
+            // Disables endpoint identification to avoid hostname validation.
             SSLParameters sslParams = sslContext.getDefaultSSLParameters();
             sslParams.setEndpointIdentificationAlgorithm(null);
 
+            // Builds and returns the customized HttpClient instance.
             return HttpClient.newBuilder()
                     .sslContext(sslContext)
                     .sslParameters(sslParams)
@@ -50,22 +55,27 @@ public class GenerateSonarReport {
         }
     }
     
+    // Sends a GET request to the SonarQube API and returns the response as a JSONObject.
     public static JSONObject fetchDataFromURL(String url, String call, String token, String projectKey) throws IOException, InterruptedException {
         HttpClient client = createUnsafeHttpClient();
         String encodedProjectKey = URLEncoder.encode(projectKey, StandardCharsets.UTF_8);
         String fullURL = String.format("%s%s%s", url, call, encodedProjectKey);
         
 
+        // Builds the HTTP request with Bearer token authentication.
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(fullURL))
                 .header("Authorization", "Bearer " + token)
                 .build();
         
         
+        // Executes the request and stores the raw response body.
         HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
+        // Parses the response body into JSON.
         JSONObject json = new JSONObject(response.body());
 
+        // Returns the parsed JSON only if the request was successful.
         if (response.statusCode() >= 200 && response.statusCode() < 300) {
             return json;
         } else {
@@ -73,8 +83,10 @@ public class GenerateSonarReport {
         }
     }
 
+    // Main method that retrieves SonarQube data and generates the PDF report.
     @SuppressWarnings("empty-statement")
     public static void main(String[] args) throws IOException {
+        // Validates the required command-line arguments.
         if (args.length < 3) {
             System.err.println("Usage: java -jar target/pdf-generator-1.0-SNAPSHOT-jar-with-dependencies.jar <apiUrl> <authToken> <project>");
             System.exit(1);
@@ -83,33 +95,37 @@ public class GenerateSonarReport {
         String authToken = args[1]; 
         String project = args[2]; 
 
-        // We create the initial pdf
+        // Creates the PDF writer and initializes JSON containers.
         PDFReportWriter pdf = new PDFReportWriter();
         JSONObject data = null;
         JSONArray dataArray = null;
         try {
+            // Retrieves basic project information used in the report header.
             data = fetchDataFromURL(apiUrl, "/api/navigation/component?component=", authToken, project);
         } catch (IOException | InterruptedException e) {
             System.err.println("Error at doing the HTTP petition: " + e.getMessage());
         }
 
+        // Extracts the project name from the response.
         String name = data.getString("name");
 
-        // Introduction
+        // Writes the introduction section of the report.
         pdf.tittle2Font();
         pdf.addLine("INTRODUCTION");
         pdf.bodyFont();
         pdf.addLine("• This document contains results of the code analysis of " + name + ".");
 
+        // Extracts the analysis date and the analyzed branch.
         String date = "• Date: " + data.getString("analysisDate");
         String branch = "• Branch: " + data.getString("branch");
         pdf.addLine(branch);
         pdf.addLine(date.replace("T", " "));
 
-        // Configuration
+        // Starts the configuration section.
         pdf.tittle2Font();
         pdf.addLine("CONFIGURATION");
 
+        // Builds the quality profiles description.
         String qualityProfiles = "• Quality Profiles: ";
         JSONArray qualityProfilesList = data.getJSONArray("qualityProfiles");
 
@@ -127,16 +143,17 @@ public class GenerateSonarReport {
         pdf.bodyFont();
         pdf.addLine(qualityProfiles);
 
+        // Adds the quality gate assigned to the project.
         String qualityGate ="• Quality Gate: ";
         JSONObject qualityGateList = data.getJSONObject("qualityGate");
         qualityGate += qualityGateList.getString("name") + ".";
         pdf.addLine(qualityGate);
 
-        // SYNTHESYS
+        // Starts the summary section of the report.
         pdf.tittle2Font();
         pdf.addLine("SYNTHESIS");
 
-        // ANALYSIS STATUS
+        // Starts the analysis status subsection.
         pdf.tittle3Font();
         pdf.addLine("ANALYSIS STATUS");
 
@@ -147,6 +164,7 @@ public class GenerateSonarReport {
         data = null;
         try {
             
+            // Retrieves the rating metrics for reliability, security, security review, and maintainability.
             data = fetchDataFromURL(apiUrl, "/api/measures/component?metricKeys=reliability_rating,software_quality_maintainability_rating,security_rating,security_review_rating&component=", authToken, project);
             data = data.getJSONObject("component");
             
@@ -154,6 +172,7 @@ public class GenerateSonarReport {
             System.err.println("Error at doing the HTTP petition: " + e.getMessage());
         }
 
+        // Reads the returned measures and converts Sonar numeric ratings into letter grades.
         JSONArray measuresList = data.getJSONArray("measures");
         String[] measures = new String[4];
         for (int i = 0; i < measuresList.length(); i++) {
@@ -172,15 +191,17 @@ public class GenerateSonarReport {
         }
 
 
+        // Adds the status row to the PDF table.
         rows.add(measures);
         pdf.drawTable(500, headers, rows);
 
-        // QUALITY GATE STATUS
+        // Starts the quality gate status subsection.
         pdf.tittle3Font();
         pdf.addLine("QUALITY GATE STATUS");
 
         try {
             
+            // Retrieves the global quality gate result for the project.
             data = fetchDataFromURL(apiUrl, "/api/qualitygates/project_status?projectKey=", authToken, project);
             data = data.getJSONObject("projectStatus");
             
@@ -188,16 +209,18 @@ public class GenerateSonarReport {
             System.err.println("Error at doing the HTTP petition: " + e.getMessage());
         }
 
+        // Writes the quality gate result as a simple line.
         pdf.bodyFont();
         pdf.addLine("| Quality Gate Status | " + data.getString("status") + " |");
 
 
-        // METRICS
+        // Starts the metrics subsection.
         pdf.tittle3Font();
         pdf.addLine("METRICS");
 
         try {
             
+            // Retrieves code metrics such as coverage, duplications, comments, and complexity.
             data = fetchDataFromURL(apiUrl, "/api/measures/component?metricKeys=duplicated_lines_density,comment_lines_density,ncloc,complexity,cognitive_complexity,coverage&component=", authToken, project);
             data = data.getJSONObject("component");
             
@@ -208,6 +231,7 @@ public class GenerateSonarReport {
         headers = new String[] { "Coverage", "Duplications", "Comment Density", "Lines of Code", "Cyclomatic Complexity", "Cognitive Complexity" };
         rows = new ArrayList<>();
 
+        // Maps each metric key to its position in the output table.
         Map<String, Integer> metricIndex = new HashMap<>();
         metricIndex.put("coverage", 0);
         metricIndex.put("duplicated_lines_density", 1);
@@ -219,6 +243,7 @@ public class GenerateSonarReport {
         measures = new String[6];
         Arrays.fill(measures, "0");
 
+        // Fills the metrics array with the values returned by SonarQube.
         for (int i = 0; i < measuresList.length(); i++) {
             JSONObject measure = measuresList.getJSONObject(i);
             String metric = measure.getString("metric");
@@ -233,17 +258,19 @@ public class GenerateSonarReport {
                 }
             }
         }
+        // Stores the total number of lines of code for later percentage calculations.
         int totalLinesOfCode = Integer.parseInt(measures[3]);
         rows.add(measures);
         pdf.drawTable(500, headers, rows);
 
         
-        // TESTS
+        // Starts the tests subsection.
         pdf.tittle3Font();
         pdf.addLine("TESTS");
 
         try {
             
+            // Retrieves the measure block used to populate the tests table.
             data = fetchDataFromURL(apiUrl, "/api/measures/component?metricKeys=duplicated_lines_density,comment_lines_density,ncloc,complexity,cognitive_complexity,coverage&component=", authToken, project);
             data = data.getJSONObject("component");
             
@@ -254,6 +281,7 @@ public class GenerateSonarReport {
         headers = new String[] { "Total", "Success Rate", "Skipped", "Errors", "Failures" };
         rows = new ArrayList<>();
 
+        // Maps test-related metrics to their position in the table.
         metricIndex = new HashMap<>();
         metricIndex.put("tests", 0);
         metricIndex.put("test_success_density", 1);
@@ -265,6 +293,7 @@ public class GenerateSonarReport {
         measures = new String[5];
         Arrays.fill(measures, "0");
         measures[1] = "0%";
+        // Fills the tests array with available values.
         for (int i = 0; i < measuresList.length(); i++) {
             JSONObject measure = measuresList.getJSONObject(i);
             String metric = measure.getString("metric");
@@ -280,15 +309,17 @@ public class GenerateSonarReport {
             }
         }
         
+        // Adds the test summary table to the PDF.
         rows.add(measures);
         pdf.drawTable(500, headers, rows);
 
-        // DETAILED TECHNICAL DEBTS
+        // Starts the technical debt subsection.
         pdf.tittle3Font();
         pdf.addLine("DETAILED TECHNICAL DEBTS");
 
         try {
             
+            // Retrieves remediation effort metrics for reliability, security, and maintainability.
             data = fetchDataFromURL(apiUrl, "/api/measures/component?metricKeys=reliability_remediation_effort,security_remediation_effort,sqale_index&component=", authToken, project);
             data = data.getJSONObject("component");
             
@@ -299,6 +330,7 @@ public class GenerateSonarReport {
         headers = new String[] { "Reliability", "Security", "Maintainability", "Total" };
         rows = new ArrayList<>();
 
+        // Maps remediation metrics to the table columns.
         metricIndex = new HashMap<>();
         metricIndex.put("reliability_remediation_effort", 0);
         metricIndex.put("security_remediation_effort", 1);
@@ -308,6 +340,7 @@ public class GenerateSonarReport {
         measures = new String[4];
         Arrays.fill(measures, "0d 0h 0m");
         int totalmins = 0;
+        // Converts remediation effort from minutes to a days-hours-minutes format.
         for (int i = 0; i < measuresList.length(); i++) {
             JSONObject measure = measuresList.getJSONObject(i);
             String metric = measure.getString("metric");
@@ -320,17 +353,19 @@ public class GenerateSonarReport {
                 measures[index] = minsToDaysHoursMins(minutes);
             }
         }
+        // Stores the total remediation effort.
         measures[3] = minsToDaysHoursMins(totalmins);
 
         rows.add(measures);
         pdf.drawTable(500, headers, rows);
 
-        // LINES PER LANGUAGE
+        // Starts the language distribution subsection.
         pdf.tittle3Font();
         pdf.addLine("LINES PER LANGUAGE");
 
         try {
             
+            // Retrieves the distribution of non-comment lines by programming language.
             data = fetchDataFromURL(apiUrl, "/api/measures/component?metricKeys=ncloc_language_distribution&component=", authToken, project);
             data = data.getJSONObject("component");
             
@@ -345,8 +380,10 @@ public class GenerateSonarReport {
 
         JSONObject measure = measuresList.getJSONObject(0);
 
+        // Raw language distribution returned by SonarQube in key=value format.
         String rawLanguages = measure.getString("value");
 
+        // Splits each language entry and calculates its percentage over total lines of code.
         for (String pair : rawLanguages.split(";")) {
             String[] parts = pair.split("=");
             if (parts.length == 2) {
@@ -358,7 +395,7 @@ public class GenerateSonarReport {
 
         pdf.drawTable(500, headers, rows);
 
-        // SECURITY HOTSPOTS
+        // Starts the security hotspots section.
 
         pdf.tittle2Font();
         pdf.addLine("SECURITY HOTSPOTS");
@@ -367,6 +404,7 @@ public class GenerateSonarReport {
 
         try {
             
+            // Retrieves security hotspot categories and associated ratings.
             data = fetchDataFromURL(apiUrl, "/api/security_reports/show?standard=sonarsourceSecurity&project=", authToken, project);
             dataArray = data.getJSONArray("categories");
             
@@ -376,6 +414,7 @@ public class GenerateSonarReport {
         
         headers = new String[] { "Categories", "Security", "Security Hotspots" };
         rows = new ArrayList<>();
+        // Maps Sonar category identifiers to human-readable labels.
         Map<String,String> categories = new HashMap<>();
         categories.put("buffer-overflow", "Buffer Overflow");
         categories.put("sql-injection", "SQL Injection");
@@ -402,6 +441,7 @@ public class GenerateSonarReport {
         categories.put("permission", "Permission");
         categories.put("others", "Others");
 
+        // Maps numeric ratings to letter grades.
         Map<Integer,String> rating = new HashMap<>();
         rating.put(1,"[A]");
         rating.put(2,"[B]");
@@ -409,6 +449,7 @@ public class GenerateSonarReport {
         rating.put(4,"[D]");
         rating.put(5,"[E]");
 
+        // Builds the summary table for vulnerabilities and hotspots by category.
         for (int i = 0; i < dataArray.length(); i++) {
             JSONObject object = dataArray.getJSONObject(i);
             String category = object.getString("category");
@@ -425,7 +466,7 @@ public class GenerateSonarReport {
 
         pdf.drawTable(500, headers, rows);
 
-        // SECURITY HOTSPOTS LIST
+        // Starts the detailed hotspot list subsection.
 
         pdf.tittle3Font();
         pdf.addLine("SECURITY HOTSPOT LIST");
@@ -435,6 +476,7 @@ public class GenerateSonarReport {
             int pageIndex = 1;
             int total = Integer.MAX_VALUE;
             dataArray = new JSONArray();
+            // Retrieves all hotspots page by page until the full result set is collected.
             while ((pageIndex - 1) * 500 < total) {
                 data = fetchDataFromURL(
                     apiUrl,
@@ -459,6 +501,7 @@ public class GenerateSonarReport {
             System.err.println("Error at doing the HTTP petition: " + e.getMessage());
         }
 
+        // Groups hotspots by rule key to merge repeated entries.
         Map<String, JSONObject> hotspotMap = new HashMap<>();
 
         for (int i = 0; i < dataArray.length(); i++) {
@@ -466,7 +509,6 @@ public class GenerateSonarReport {
             String ruleKey = originalObj.getString("ruleKey");
 
             if (hotspotMap.containsKey(ruleKey)) {
-                // It exists
                 JSONObject existing = hotspotMap.get(ruleKey);
                 int currentCount = existing.getInt("count");
                 existing.put("count", currentCount + 1);
@@ -478,7 +520,7 @@ public class GenerateSonarReport {
                 existing.put("location", currentLocations + " | " + file + ": " + textLine);
 
             } else {
-                // Is new
+                // Creates a new grouped hotspot entry.
                 JSONObject newObj = new JSONObject();
                 JSONObject textLines = originalObj.getJSONObject("textRange");
                 String file = originalObj.getString("component");
@@ -494,7 +536,7 @@ public class GenerateSonarReport {
                 hotspotMap.put(ruleKey, newObj);
             }
         }
-        // Convert map to JSONArray
+        // Converts the grouped hotspot map into a JSONArray for iteration.
         JSONArray hotspotArray = new JSONArray(hotspotMap.values());
         for (int i = 0; i < hotspotArray.length(); i++) {
             JSONObject hotspotObject = hotspotArray.getJSONObject(i);
@@ -505,9 +547,8 @@ public class GenerateSonarReport {
             pdf.addIndentedHyperlink("Root Cause/How to fix", apiUrl+"coding_rules?q="+hotspotObject.getString("ruleKey")+"&open="+hotspotObject.getString("ruleKey"),hotspotObject.getString("ruleKey"));
         }
 
-        // -----------------------------
+        // Starts the issues section.
 
-        // ISSUES
         pdf.tittle2Font();
         pdf.addLine("ISSUES");
         pdf.tittle3Font();
@@ -518,6 +559,7 @@ public class GenerateSonarReport {
 
         try {
             
+            // Retrieves bug counts grouped by severity.
             data = fetchDataFromURL(apiUrl, "/api/issues/search?types=BUG&facets=severities&componentKeys=", authToken, project);
             
         } catch (IOException | InterruptedException e) {
@@ -530,6 +572,7 @@ public class GenerateSonarReport {
 
         try {
             
+            // Retrieves vulnerability counts grouped by severity.
             data = fetchDataFromURL(apiUrl, "/api/issues/search?types=VULNERABILITY&facets=severities&componentKeys=", authToken, project);
             
         } catch (IOException | InterruptedException e) {
@@ -542,6 +585,7 @@ public class GenerateSonarReport {
 
         try {
             
+            // Retrieves code smell counts grouped by severity.
             data = fetchDataFromURL(apiUrl, "/api/issues/search?types=CODE_SMELL&facets=severities&componentKeys=", authToken, project);
             
         } catch (IOException | InterruptedException e) {
@@ -554,7 +598,7 @@ public class GenerateSonarReport {
         
         pdf.drawTable(500, headers, rows);
 
-        // ISSUES LIST
+        // Starts the detailed issues subsection.
         pdf.tittle3Font();
         pdf.addLine("ISSUES LIST");
 
@@ -562,6 +606,7 @@ public class GenerateSonarReport {
             int pageIndex = 1;
             int total = Integer.MAX_VALUE;
             dataArray = new JSONArray();
+            // Retrieves all open issues page by page.
             while ((pageIndex - 1) * 500 < total) {
                 data = fetchDataFromURL(
                     apiUrl,
@@ -586,6 +631,7 @@ public class GenerateSonarReport {
             System.err.println("Error at doing the HTTP petition: " + e.getMessage());
         }
 
+        // Groups issues by rule key to avoid duplicated report entries.
         Map<String, JSONObject> issuesMap = new HashMap<>();
 
         for (int i = 0; i < dataArray.length(); i++) {
@@ -593,7 +639,6 @@ public class GenerateSonarReport {
             String ruleKey = originalObj.getString("rule");
 
             if (issuesMap.containsKey(ruleKey)) {
-                // It exists
                 JSONObject existing = issuesMap.get(ruleKey);
                 int currentCount = existing.getInt("count");
                 existing.put("count", currentCount + 1);
@@ -608,7 +653,7 @@ public class GenerateSonarReport {
                 }
                 else existing.put("location", currentLocations + " | " + file);
             } else {
-                // Is new
+                // Creates a new grouped issue entry.
                 JSONObject newObj = new JSONObject();
                 
                 
@@ -631,9 +676,10 @@ public class GenerateSonarReport {
             }
         }
 
-        // Map to JsonArray
+        // Converts the grouped issues map into a JSONArray.
         JSONArray issuesArray = new JSONArray(issuesMap.values());
 
+        // Writes the detailed list of grouped issues into the PDF.
         for (int i = 0; i < issuesArray.length(); i++) {
             JSONObject issuesObject = issuesArray.getJSONObject(i);
             pdf.startBulletEntry(issuesObject.getString("message"));
@@ -643,11 +689,13 @@ public class GenerateSonarReport {
             pdf.addIndentedLine("Locations", issuesObject.getString("location"));
             pdf.addIndentedHyperlink("Root Cause/How to fix", apiUrl+"coding_rules?q="+issuesObject.getString("ruleKey")+"&open="+issuesObject.getString("ruleKey"),issuesObject.getString("ruleKey"));
         }
+        // Finalizes the report by inserting the index, adding the cover page, and saving the PDF.
         pdf.insertIndexAtBeginning();
         pdf.addCoverPage("SonarQube Report", "Generated for "+ project);
         pdf.save("sonarqube-report.pdf");
     }
 
+    // Converts a number of minutes into a formatted string with days, hours, and minutes.
     private static String minsToDaysHoursMins(int minutes) {
         int days = minutes / (24 * 60);
         int hours = (minutes % (24 * 60)) / 60;
@@ -656,6 +704,7 @@ public class GenerateSonarReport {
         return String.format("%dd %02dh %02dm", days, hours, mins);
     }
 
+    // Safely returns the value of the "count" field from the given JSON array position.
     private String getCountAsString(JSONArray jsonArray, int index) {
     if (jsonArray != null && index >= 0 && index < jsonArray.length()) {
         try {
