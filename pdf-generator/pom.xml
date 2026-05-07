@@ -44,7 +44,7 @@
                 <configuration>
                     <archive>
                         <manifest>
-                            <mainClass>GenerateSonarReport</mainClass> 
+                            <mainClass>com.ods.GenerateSonarReport</mainClass>
                         </manifest>
                     </archive>
                     <descriptorRefs>

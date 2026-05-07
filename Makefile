@@ -4,6 +4,8 @@
 help:
 	@echo "sonar-report - Makefile targets"
 	@echo ""
+	@echo "Note: Uses Maven wrapper (./mvnw) - no Maven installation needed"
+	@echo ""
 	@echo "Targets:"
 	@echo "  build       Build the project and generate JAR"
 	@echo "  clean       Remove build artifacts"
@@ -23,11 +25,11 @@ help:
 
 # Build the project
 build: clean
-	cd pdf-generator && mvn clean package -DskipTests
+	./mvnw -f pdf-generator/pom.xml clean package -DskipTests
 
 # Clean build artifacts
 clean:
-	cd pdf-generator && mvn clean
+	./mvnw -f pdf-generator/pom.xml clean
 	rm -f sonarqube-report.pdf
 
 # Alias for build
@@ -35,7 +37,7 @@ package: build
 
 # Install JAR to local Maven repository
 install:
-	cd pdf-generator && mvn install -DskipTests
+	./mvnw -f pdf-generator/pom.xml install -DskipTests
 
 # Run the application
 run: build
@@ -51,8 +53,8 @@ run: build
 
 # Run tests (if any)
 test:
-	cd pdf-generator && mvn test
+	./mvnw -f pdf-generator/pom.xml test
 
 # Quick build without tests
 quick:
-	cd pdf-generator && mvn package -DskipTests -T 1C
+	./mvnw -f pdf-generator/pom.xml package -DskipTests -T 1C

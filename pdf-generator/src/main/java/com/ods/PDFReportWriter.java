@@ -1,3 +1,5 @@
+package com.ods;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.LocalDateTime;
@@ -136,7 +138,7 @@ public class PDFReportWriter {
 
         contentStream.endText();
     }
-    
+
     private List<String> divideTextInLines(String text, PDFont font, float size, float maxWidth) throws IOException {
         List<String> lines = new ArrayList<>();
         if (text == null || text.isEmpty()) {
@@ -365,19 +367,19 @@ public class PDFReportWriter {
     public void insertIndexAtBeginning() throws IOException {
         PDPage indexPage = new PDPage(PDRectangle.A4);
 
-       
+
         List<PDPage> existingPages = new ArrayList<>();
         for (PDPage page : document.getPages()) {
             existingPages.add(page);
         }
 
-        
+
         int total = document.getNumberOfPages();
         for (int i = total - 1; i >= 0; i--) {
             document.removePage(i);
         }
 
-        
+
         document.addPage(indexPage);
         indexPages.add(indexPage);
         drawHeader(indexPage);
@@ -388,7 +390,7 @@ public class PDFReportWriter {
         float y = PDRectangle.A4.getHeight() - margin - 60;
         float lineHeight = 2.0f * bodySize;
 
-        
+
         indexStream.setFont(tittle1Font, tittle1Size);
         indexStream.beginText();
         indexStream.newLineAtOffset(margin, y);
@@ -428,26 +430,26 @@ public class PDFReportWriter {
 
             indexStream.setFont(thisFont, thisFontSize);
 
-            int pageNum = existingPages.indexOf(bm.page) + 2; 
+            int pageNum = existingPages.indexOf(bm.page) + 2;
             String pageStr = String.valueOf(pageNum);
 
             float pageStrWidth = thisFont.getStringWidth(pageStr) / 1000 * thisFontSize;
             float titleWidth = thisFont.getStringWidth(title) / 1000 * thisFontSize;
 
-            
+
             indexStream.beginText();
             indexStream.newLineAtOffset(indent, y);
             indexStream.showText(title);
             indexStream.endText();
 
-            
+
             float pageNumX = PDRectangle.A4.getWidth() - margin - pageStrWidth;
             indexStream.beginText();
             indexStream.newLineAtOffset(pageNumX, y);
             indexStream.showText(pageStr);
             indexStream.endText();
 
-            
+
             PDPageXYZDestination dest = new PDPageXYZDestination();
             dest.setPage(bm.page);
             dest.setTop((int) bm.yPosition);
@@ -487,7 +489,7 @@ public class PDFReportWriter {
 
         indexStream.close();
 
-        
+
         for (PDPage page : existingPages) {
             document.addPage(page);
         }
@@ -507,7 +509,7 @@ public class PDFReportWriter {
                     lines.add(currentLine.toString());
                 }
 
-                
+
                 while (font.getStringWidth(word) / 1000 * fontSize > maxWidth) {
                     int cutIndex = 1;
                     while (cutIndex < word.length() &&
@@ -533,7 +535,7 @@ public class PDFReportWriter {
     }
 
     private void repositionIndexPages() {
-        int insertAfter = 0; 
+        int insertAfter = 0;
 
         for (int i = indexPages.size() - 1; i >= 0; i--) {
             PDPage page = indexPages.get(i);
@@ -551,7 +553,7 @@ public class PDFReportWriter {
             contentStream = null;
         }
 
-        repositionIndexPages(); 
+        repositionIndexPages();
 
         int totalPages = document.getNumberOfPages();
         for (int i = 0; i < totalPages; i++) {
@@ -688,7 +690,7 @@ public class PDFReportWriter {
 
     private void drawFooter(PDPage page, int pageNumber, int totalPages) throws IOException {
         try (PDPageContentStream footerStream = new PDPageContentStream(document, page, PDPageContentStream.AppendMode.APPEND, true, true)) {
-            float y = 20f; 
+            float y = 20f;
             float pageWidth = PDRectangle.A4.getWidth();
 
             String text = "Page " + pageNumber + " of " + totalPages;
@@ -775,7 +777,7 @@ public class PDFReportWriter {
         yPosition -= leading;
         margin = originalMargin;
     }
-    
+
     public void addIndentedHyperlink(String label, String url, String visibleText) throws IOException {
         float originalMargin = margin;
         margin += 20;
@@ -798,7 +800,7 @@ public class PDFReportWriter {
         contentStream.newLineAtOffset(margin, yPosition);
         contentStream.showText("• " + label + ": ");
         contentStream.setFont(bodyFont, bodySize);
-        contentStream.setNonStrokingColor(0, 0, 1); 
+        contentStream.setNonStrokingColor(0, 0, 1);
         contentStream.newLineAtOffset(labelWidth, 0);
         contentStream.showText(visibleText);
         contentStream.endText();
@@ -821,101 +823,6 @@ public class PDFReportWriter {
         link.setAction(action);
 
         document.getPage(document.getNumberOfPages() - 1).getAnnotations().add(link);
-
-        yPosition -= leading;
-        margin = originalMargin;
-    }
-
-    private String expandTabs(String input, int tabSize) {
-        StringBuilder result = new StringBuilder();
-        int position = 0;
-        for (char c : input.toCharArray()) {
-            if (c == '\t') {
-                int spaces = tabSize - (position % tabSize);
-                result.append(" ".repeat(spaces));
-                position += spaces;
-            } else {
-                result.append(c);
-                position += (c == '\n') ? 0 : 1;
-            }
-        }
-        return result.toString();
-    }
-    
-    public void addInlineFormattedBlock(String label, String content) throws IOException {
-        float originalMargin = margin;
-        margin += 20;
-
-        if (contentStream != null) {
-            try {
-                contentStream.endText();
-            } catch (IllegalStateException ignored) {}
-        }
-
-        PDFont codeFont = bodyFont;
-        float fontSize = bodySize;
-        float maxWidth = PDRectangle.A4.getWidth() - 2 * margin;
-
-        String[] lines = content.split("\n");
-        if (lines.length == 0) return;
-
-        String labelText = "• " + label + ": ";
-        float labelWidth = tittle3Font.getStringWidth(labelText) / 1000 * fontSize;
-
-        if (yPosition <= margin + leading) {
-            contentStream.close();
-            addNewPage();
-        }
-
-        contentStream.beginText();
-        contentStream.setFont(tittle3Font, fontSize);
-        contentStream.newLineAtOffset(margin, yPosition);
-        contentStream.showText(labelText);
-        contentStream.setFont(codeFont, fontSize);
-
-        String firstLine = lines[0];
-        List<String> wrappedFirst = divideTextInLines(firstLine, codeFont, fontSize, maxWidth - labelWidth);
-
-        if (!wrappedFirst.isEmpty()) {
-            contentStream.newLineAtOffset(labelWidth, 0);
-            contentStream.showText(wrappedFirst.get(0));
-            contentStream.endText();
-            yPosition -= leading;
-
-            for (int i = 1; i < wrappedFirst.size(); i++) {
-                if (yPosition <= margin + leading) {
-                    contentStream.close();
-                    addNewPage();
-                }
-                contentStream.beginText();
-                contentStream.setFont(codeFont, fontSize);
-                contentStream.newLineAtOffset(margin, yPosition);
-                contentStream.showText(wrappedFirst.get(i));
-                contentStream.endText();
-                yPosition -= leading;
-            }
-        } else {
-            contentStream.endText();
-            yPosition -= leading;
-        }
-
-        for (int i = 1; i < lines.length; i++) {
-            String expanded = expandTabs(lines[i], 4);
-            List<String> wrapped = divideTextInLines(expanded, codeFont, fontSize, maxWidth);
-
-            for (String w : wrapped) {
-                if (yPosition <= margin + leading) {
-                    contentStream.close();
-                    addNewPage();
-                }
-                contentStream.beginText();
-                contentStream.setFont(codeFont, fontSize);
-                contentStream.newLineAtOffset(margin, yPosition);
-                contentStream.showText(w);
-                contentStream.endText();
-                yPosition -= leading;
-            }
-        }
 
         yPosition -= leading;
         margin = originalMargin;
@@ -948,48 +855,6 @@ public class PDFReportWriter {
         }
 
         document.getPages().insertBefore(cover, document.getPage(0));
-    }
-
-    private List<NumberedBookmark> buildHierarchicalBookmarks() {
-        List<NumberedBookmark> result = new ArrayList<>();
-        int[] levels = new int[10]; 
-        boolean hasLevel1 = bookmarks.stream().anyMatch(b -> b.level == 1);
-
-        for (Bookmark bm : bookmarks) {
-            int realLevel = bm.level;
-
-            if (!hasLevel1 && bm.level > 1) {
-                realLevel = bm.level - 1;
-            }
-
-            levels[realLevel - 1]++;
-
-            for (int i = realLevel; i < levels.length; i++) {
-                levels[i] = 0;
-            }
-
-            StringBuilder num = new StringBuilder();
-            for (int i = 0; i < realLevel; i++) {
-                if (levels[i] > 0) {
-                    if (num.length() > 0) num.append(".");
-                    num.append(levels[i]);
-                }
-            }
-
-            result.add(new NumberedBookmark(num.toString(), bm));
-        }
-
-        return result;
-    }
-
-    private static class NumberedBookmark {
-        String number;
-        Bookmark bookmark;
-
-        NumberedBookmark(String number, Bookmark bookmark) {
-            this.number = number;
-            this.bookmark = bookmark;
-        }
     }
 
     public void addBookmark(String title, int level) {
