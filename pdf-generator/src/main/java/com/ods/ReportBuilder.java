@@ -53,8 +53,8 @@ public class ReportBuilder {
         RATING_LABELS.put(5, "[E]");
     }
 
-    public ReportBuilder(String apiUrl, String authToken, String project) throws IOException {
-        this.client = new SonarApiClient(apiUrl, authToken);
+    public ReportBuilder(String apiUrl, String authToken, String project, String branch) throws IOException {
+        this.client = new SonarApiClient(apiUrl, authToken, branch);
         this.pdf = new PDFReportWriter();
         this.apiUrl = apiUrl;
         this.project = project;

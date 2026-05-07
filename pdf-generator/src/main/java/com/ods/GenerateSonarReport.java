@@ -12,15 +12,16 @@ public class GenerateSonarReport {
         String sonarUrl = params.get("--sonar-url");
         String token    = params.get("--token");
         String project  = params.get("--project");
+        String branch   = params.get("--branch");
         String output   = params.getOrDefault("--output", "sonarqube-report.pdf");
 
         if (sonarUrl == null || token == null || project == null) {
             System.err.println("Usage: java -jar sonar-report-1.0-jar-with-dependencies.jar"
-                + " --sonar-url <url> --token <token> --project <key> [--output <file.pdf>]");
+                + " --sonar-url <url> --token <token> --project <key> [--branch <branch>] [--output <file.pdf>]");
             System.exit(1);
         }
 
-        new ReportBuilder(sonarUrl, token, project).build(output);
+        new ReportBuilder(sonarUrl, token, project, branch).build(output);
     }
 
     private static Map<String, String> parseArgs(String[] args) {

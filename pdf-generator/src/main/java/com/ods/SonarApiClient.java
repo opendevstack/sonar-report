@@ -19,11 +19,13 @@ public class SonarApiClient {
 
     private final String apiUrl;
     private final String authToken;
+    private final String branch;
     private final HttpClient httpClient;
 
-    public SonarApiClient(String apiUrl, String authToken) {
+    public SonarApiClient(String apiUrl, String authToken, String branch) {
         this.apiUrl = apiUrl;
         this.authToken = authToken;
+        this.branch = branch;
         this.httpClient = createUnsafeHttpClient();
     }
 
@@ -53,6 +55,9 @@ public class SonarApiClient {
     public JSONObject fetchDataFromURL(String call, String projectKey) throws IOException, InterruptedException {
         String encodedProjectKey = URLEncoder.encode(projectKey, StandardCharsets.UTF_8);
         String fullURL = String.format("%s%s%s", apiUrl, call, encodedProjectKey);
+        if (branch != null && !branch.isBlank()) {
+            fullURL += "&branch=" + URLEncoder.encode(branch, StandardCharsets.UTF_8);
+        }
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(fullURL))

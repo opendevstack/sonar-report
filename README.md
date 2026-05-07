@@ -90,6 +90,7 @@ java -jar sonar-report-1.0-jar-with-dependencies.jar \
   --sonar-url <url> \
   --token <token> \
   --project <key> \
+  [--branch <branch>] \
   [--output <file.pdf>]
 ```
 
@@ -100,6 +101,7 @@ java -jar sonar-report-1.0-jar-with-dependencies.jar \
 | `--sonar-url` | Yes | Base URL of your SonarQube server, e.g. `https://sonarqube.example.com` |
 | `--token` | Yes | SonarQube user token (Bearer authentication) |
 | `--project` | Yes | The project key as shown in SonarQube, e.g. `com.example:my-project` |
+| `--branch` | No | Branch to analyze (default: SonarQube project default branch) |
 | `--output` | No | Output PDF filename (default: `sonarqube-report.pdf`) |
 
 ### Example
@@ -108,7 +110,8 @@ java -jar sonar-report-1.0-jar-with-dependencies.jar \
 java -jar sonar-report-1.0-jar-with-dependencies.jar \
   --sonar-url "https://sonarqube.example.com" \
   --token "squ_abc123yourtoken" \
-  --project "com.example:my-project"
+  --project "com.example:my-project" \
+  --branch "main"
 ```
 
 With a custom output filename:
@@ -118,6 +121,7 @@ java -jar sonar-report-1.0-jar-with-dependencies.jar \
   --sonar-url "https://sonarqube.example.com" \
   --token "squ_abc123yourtoken" \
   --project "com.example:my-project" \
+  --branch "develop" \
   --output "my-project-report.pdf"
 ```
 
