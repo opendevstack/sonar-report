@@ -46,6 +46,11 @@ jobs:
           java-version: ${{ steps.detect-java.outputs.version }}
           cache: maven
 
+      - name: Run tests with Maven (pdf-generator)
+        run: |
+          set -euo pipefail
+          mvn -f pdf-generator/pom.xml -B test
+
       - name: Build with Maven (pdf-generator)
         run: |
           set -euo pipefail
