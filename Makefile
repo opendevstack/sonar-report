@@ -1,4 +1,4 @@
-.PHONY: help build clean run install package
+.PHONY: help build clean run install package test test-verbose quick
 
 # Default target
 help:
@@ -7,12 +7,14 @@ help:
 	@echo "Note: Uses Maven wrapper (./mvnw) - no Maven installation needed"
 	@echo ""
 	@echo "Targets:"
-	@echo "  build       Build the project and generate JAR"
-	@echo "  clean       Remove build artifacts"
-	@echo "  package     Create distribution JAR (alias: build)"
-	@echo "  run         Run the JAR with SonarQube (requires SONAR_URL, SONAR_TOKEN, SONAR_PROJECT)"
-	@echo "  install     Install JAR to local Maven repository"
-	@echo "  test        Run Maven tests (if any)"
+	@echo "  build          Build the project and generate JAR"
+	@echo "  clean          Remove build artifacts"
+	@echo "  package        Create distribution JAR (alias: build)"
+	@echo "  run            Run the JAR with SonarQube (requires SONAR_URL, SONAR_TOKEN, SONAR_PROJECT)"
+	@echo "  test           Run unit tests"
+	@echo "  test-verbose   Run tests with detailed output"
+	@echo "  install        Install JAR to local Maven repository"
+	@echo "  quick          Fast build without tests"
 	@echo ""
 	@echo "Environment variables for 'make run':"
 	@echo "  SONAR_URL      SonarQube base URL (required)"
@@ -21,6 +23,7 @@ help:
 	@echo ""
 	@echo "Example:"
 	@echo "  make build"
+	@echo "  make test"
 	@echo "  make run SONAR_URL='https://sonarqube.example.com' SONAR_TOKEN='squ_token' SONAR_PROJECT='com.example:my-project'"
 
 # Build the project
@@ -53,6 +56,10 @@ run: build
 
 # Run tests (if any)
 test:
+	./mvnw -f pdf-generator/pom.xml test -q
+
+# Run tests with verbose output
+test-verbose:
 	./mvnw -f pdf-generator/pom.xml test
 
 # Quick build without tests

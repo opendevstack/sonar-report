@@ -24,7 +24,7 @@ public class GenerateSonarReport {
         new ReportBuilder(sonarUrl, token, project, branch).build(output);
     }
 
-    private static Map<String, String> parseArgs(String[] args) {
+    static Map<String, String> parseArgs(String[] args) {
         Map<String, String> params = new HashMap<>();
         for (int i = 0; i + 1 < args.length; i++) {
             if (args[i].startsWith("--")) {

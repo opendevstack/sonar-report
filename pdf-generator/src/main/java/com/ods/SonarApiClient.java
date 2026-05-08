@@ -29,6 +29,13 @@ public class SonarApiClient {
         this.httpClient = createUnsafeHttpClient();
     }
 
+    SonarApiClient(String apiUrl, String authToken, String branch, HttpClient httpClient) {
+        this.apiUrl = apiUrl;
+        this.authToken = authToken;
+        this.branch = branch;
+        this.httpClient = httpClient;
+    }
+
     // Creates an HttpClient that accepts all SSL certificates and disables hostname verification.
     private HttpClient createUnsafeHttpClient() {
         try {

@@ -178,7 +178,7 @@ public class PDFReportWriter {
         return lines;
     }
 
-    private List<String> splitBySlash(String word) {
+    static List<String> splitBySlash(String word) {
         List<String> result = new ArrayList<>();
         StringBuilder current = new StringBuilder();
 

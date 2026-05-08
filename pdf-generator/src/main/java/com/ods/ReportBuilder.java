@@ -430,7 +430,7 @@ public class ReportBuilder {
         }
     }
 
-    private static Map<String, JSONObject> groupHotspotsByRule(JSONArray hotspots) {
+    static Map<String, JSONObject> groupHotspotsByRule(JSONArray hotspots) {
         Map<String, JSONObject> result = new HashMap<>();
         for (int i = 0; i < hotspots.length(); i++) {
             JSONObject obj = hotspots.getJSONObject(i);
@@ -454,7 +454,7 @@ public class ReportBuilder {
         return result;
     }
 
-    private static Map<String, JSONObject> groupIssuesByRule(JSONArray issues) {
+    static Map<String, JSONObject> groupIssuesByRule(JSONArray issues) {
         Map<String, JSONObject> result = new HashMap<>();
         for (int i = 0; i < issues.length(); i++) {
             JSONObject obj = issues.getJSONObject(i);
@@ -489,11 +489,11 @@ public class ReportBuilder {
         return result;
     }
 
-    private static String extractComponent(String component) {
+    static String extractComponent(String component) {
         return component.contains(":") ? component.split(":", 2)[1].trim() : component;
     }
 
-    private static String ratingToLetter(String value) {
+    static String ratingToLetter(String value) {
         switch (value) {
             case "1.0": return "A";
             case "2.0": return "B";
@@ -504,7 +504,7 @@ public class ReportBuilder {
         }
     }
 
-    private static String minsToDaysHoursMins(int minutes) {
+    static String minsToDaysHoursMins(int minutes) {
         int days = minutes / (24 * 60);
         int hours = (minutes % (24 * 60)) / 60;
         int mins = minutes % 60;

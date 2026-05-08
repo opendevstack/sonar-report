@@ -22,9 +22,11 @@ The project is organized with clean separation of concerns:
 | Module | Purpose | Lines |
 |---|---|---|
 | `GenerateSonarReport` | Entry point — command-line argument parsing | ~15 |
-| `SonarApiClient` | HTTP transport layer — SonarQube API calls with SSL bypass | ~70 |
+| `SonarApiClient` | HTTP transport layer — SonarQube API calls with SSL bypass | ~75 |
 | `ReportBuilder` | Report orchestration — fetches data and builds PDF sections | ~510 |
 | `PDFReportWriter` | PDF rendering utilities — low-level PDF operations | ~860 |
+
+**Tests:** Unit tests in `src/test/java/com/ods/` using JUnit 5 + Mockito — 31 test cases covering CLI, HTTP, aggregation, and PDF utilities.
 
 **Package:** `com.ods`
 
@@ -46,8 +48,9 @@ All available Make targets:
 make help                    # Show all available targets
 make build                   # Build and package the JAR
 make clean                   # Remove build artifacts
+make test                    # Run unit tests (quiet)
+make test-verbose            # Run unit tests (verbose)
 make install                 # Install JAR to local Maven repository
-make test                    # Run tests (if any)
 make quick                   # Fast build without tests
 ```
 
@@ -72,6 +75,70 @@ pdf-generator/target/sonar-report-1.0-jar-with-dependencies.jar
 ```
 
 Pre-built JARs are also attached to each [GitHub Release](../../releases).
+
+---
+
+## Testing
+
+### Running Tests
+
+#### Using Make (Recommended)
+
+```bash
+make test              # Run tests (quiet output)
+make test-verbose      # Run tests with detailed output
+```
+
+#### Using Maven Wrapper (Direct)
+
+```bash
+cd pdf-generator
+../mvnw test
+```
+
+### Test Structure
+
+The project includes comprehensive unit tests covering all major components:
+
+| Test Class | Module | Coverage |
+|---|---|---|
+| `GenerateSonarReportTest` | CLI argument parsing | 5 test cases |
+| `ReportBuilderTest` | Report data aggregation | 13 test cases |
+| `PDFReportWriterTest` | PDF utilities | 7 test cases |
+| `SonarApiClientTest` | HTTP API transport | 6 test cases |
+| **Total** | — | **31 test cases** |
+
+### Test Details
+
+**GenerateSonarReportTest** — Validates command-line argument parsing:
+- All known flags (`--sonar-url`, `--token`, `--project`, `--branch`, `--output`)
+- Empty arguments, dangling flags, non-flag arguments
+- Duplicate flag handling
+
+**ReportBuilderTest** — Tests data transformation utilities:
+- `extractComponent()` — file path extraction from component identifiers
+- `ratingToLetter()` — quality rating conversion (A–E)
+- `minsToDaysHoursMins()` — technical debt time formatting
+- `groupHotspotsByRule()` — aggregates security hotspots by rule key
+- `groupIssuesByRule()` — aggregates code issues by rule key
+
+**PDFReportWriterTest** — Tests PDF rendering utilities:
+- `getCurrentGMTTimeFormatted()` — GMT timestamp formatting with regex validation
+- `splitBySlash()` — path component splitting (handles slashes at end)
+
+**SonarApiClientTest** — Tests HTTP API transport with mocked responses:
+- Successful 200 responses return parsed JSON
+- Error responses (401, 404) throw `IOException`
+- URL encoding of special characters in project keys
+- Branch parameter handling (with/without/blank)
+
+### Test Framework
+
+- **Framework:** JUnit 5 (Jupiter)
+- **Mocking:** Mockito 5.11.0
+- **Compiler:** Java 17+
+
+All tests are run during the standard Maven build via the Maven Surefire plugin.
 
 ---
 
@@ -149,6 +216,7 @@ The generated PDF contains:
 - The tool accepts self-signed TLS certificates, making it suitable for internal SonarQube deployments.
 - Paginated API results (hotspots, issues) are fully iterated — no result cap at 500.
 - All arguments are passed as named flags (`--sonar-url`, `--token`, `--project`, `--output`); no environment variables or config files are required.
+- **Test Coverage:** Comprehensive unit tests (31 test cases) validate CLI parsing, API transport, data aggregation, and PDF utilities.
 - **Bug fix:** Tests section now fetches correct metrics (was incorrectly reusing Metrics URL).
 - **Performance:** HTTP client is built once and reused across all API calls.
 
