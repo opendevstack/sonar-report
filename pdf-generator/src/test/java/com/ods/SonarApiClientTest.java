@@ -199,4 +199,47 @@ class SonarApiClientTest {
         assertTrue(url.contains("my+project") || url.contains("my%20project"),
             "URL should contain encoded project key");
     }
+
+    @Test
+    void fetchDataFromURL_withBranch_includesInUrl() throws Exception {
+        HttpClient mockClient = Mockito.mock(HttpClient.class);
+        HttpResponse<String> response = mockResponse(200, "{\"ok\": true}");
+
+        @SuppressWarnings("unchecked")
+        java.util.concurrent.atomic.AtomicReference<HttpRequest> capturedRequest =
+            new java.util.concurrent.atomic.AtomicReference<>();
+
+        Mockito.doAnswer(inv -> {
+            capturedRequest.set(inv.getArgument(0));
+            return response;
+        }).when(mockClient).send(any(HttpRequest.class), any());
+
+        SonarApiClient client = new SonarApiClient("http://sonar", "token", "feature/test", mockClient);
+        client.fetchDataFromURL("/api/test?component=", "myproject");
+
+        String url = capturedRequest.get().uri().toString();
+        assertTrue(url.contains("&branch="), "URL should contain branch parameter");
+        assertTrue(url.contains("feature%2Ftest"), "branch value should be URL-encoded");
+    }
+
+    @Test
+    void fetchDataFromURL_withoutBranch_noBranchInUrl() throws Exception {
+        HttpClient mockClient = Mockito.mock(HttpClient.class);
+        HttpResponse<String> response = mockResponse(200, "{\"ok\": true}");
+
+        @SuppressWarnings("unchecked")
+        java.util.concurrent.atomic.AtomicReference<HttpRequest> capturedRequest =
+            new java.util.concurrent.atomic.AtomicReference<>();
+
+        Mockito.doAnswer(inv -> {
+            capturedRequest.set(inv.getArgument(0));
+            return response;
+        }).when(mockClient).send(any(HttpRequest.class), any());
+
+        SonarApiClient client = new SonarApiClient("http://sonar", "token", null, mockClient);
+        client.fetchDataFromURL("/api/test?component=", "myproject");
+
+        String url = capturedRequest.get().uri().toString();
+        assertFalse(url.contains("&branch="), "URL should not contain branch parameter when branch is null");
+    }
 }
