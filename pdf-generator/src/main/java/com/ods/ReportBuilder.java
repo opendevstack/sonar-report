@@ -71,12 +71,7 @@ public class ReportBuilder {
     }
 
     private void buildIntroductionAndConfiguration() throws IOException {
-        JSONObject data = null;
-        try {
-            data = client.fetchDataFromURL("/api/navigation/component?component=", project);
-        } catch (IOException | InterruptedException e) {
-            System.err.println("Error at doing the HTTP petition: " + e.getMessage());
-        }
+        JSONObject data = client.fetchDataFromURL("/api/navigation/component?component=", project);
 
         String name = data.getString("name");
 
@@ -111,13 +106,8 @@ public class ReportBuilder {
         pdf.tittle3Font();
         pdf.addLine("ANALYSIS STATUS");
 
-        JSONObject data = null;
-        try {
-            data = client.fetchDataFromURL("/api/measures/component?metricKeys=reliability_rating,software_quality_maintainability_rating,security_rating,security_review_rating&component=", project);
-            data = data.getJSONObject("component");
-        } catch (IOException | InterruptedException e) {
-            System.err.println("Error at doing the HTTP petition: " + e.getMessage());
-        }
+        JSONObject data = client.fetchDataFromURL("/api/measures/component?metricKeys=reliability_rating,software_quality_maintainability_rating,security_rating,security_review_rating&component=", project);
+        data = data.getJSONObject("component");
 
         String[] headers = {"Reliability", "Security", "Security Review", "Maintainability"};
         List<String[]> rows = new ArrayList<>();
@@ -133,12 +123,8 @@ public class ReportBuilder {
         pdf.tittle3Font();
         pdf.addLine("QUALITY GATE STATUS");
 
-        try {
-            data = client.fetchDataFromURL("/api/qualitygates/project_status?projectKey=", project);
-            data = data.getJSONObject("projectStatus");
-        } catch (IOException | InterruptedException e) {
-            System.err.println("Error at doing the HTTP petition: " + e.getMessage());
-        }
+        data = client.fetchDataFromURL("/api/qualitygates/project_status?projectKey=", project);
+        data = data.getJSONObject("projectStatus");
 
         pdf.bodyFont();
         pdf.addLine("| Quality Gate Status | " + data.getString("status") + " |");
@@ -147,12 +133,8 @@ public class ReportBuilder {
         pdf.tittle3Font();
         pdf.addLine("METRICS");
 
-        try {
-            data = client.fetchDataFromURL("/api/measures/component?metricKeys=duplicated_lines_density,comment_lines_density,ncloc,complexity,cognitive_complexity,coverage&component=", project);
-            data = data.getJSONObject("component");
-        } catch (IOException | InterruptedException e) {
-            System.err.println("Error at doing the HTTP petition: " + e.getMessage());
-        }
+        data = client.fetchDataFromURL("/api/measures/component?metricKeys=duplicated_lines_density,comment_lines_density,ncloc,complexity,cognitive_complexity,coverage&component=", project);
+        data = data.getJSONObject("component");
 
         headers = new String[]{"Coverage", "Duplications", "Comment Density", "Lines of Code", "Cyclomatic Complexity", "Cognitive Complexity"};
         rows = new ArrayList<>();
@@ -187,12 +169,8 @@ public class ReportBuilder {
         pdf.tittle3Font();
         pdf.addLine("TESTS");
 
-        try {
-            data = client.fetchDataFromURL("/api/measures/component?metricKeys=tests,test_success_density,skipped_tests,test_errors,test_failures&component=", project);
-            data = data.getJSONObject("component");
-        } catch (IOException | InterruptedException e) {
-            System.err.println("Error at doing the HTTP petition: " + e.getMessage());
-        }
+        data = client.fetchDataFromURL("/api/measures/component?metricKeys=tests,test_success_density,skipped_tests,test_errors,test_failures&component=", project);
+        data = data.getJSONObject("component");
 
         headers = new String[]{"Total", "Success Rate", "Skipped", "Errors", "Failures"};
         rows = new ArrayList<>();
@@ -226,12 +204,8 @@ public class ReportBuilder {
         pdf.tittle3Font();
         pdf.addLine("DETAILED TECHNICAL DEBTS");
 
-        try {
-            data = client.fetchDataFromURL("/api/measures/component?metricKeys=reliability_remediation_effort,security_remediation_effort,sqale_index&component=", project);
-            data = data.getJSONObject("component");
-        } catch (IOException | InterruptedException e) {
-            System.err.println("Error at doing the HTTP petition: " + e.getMessage());
-        }
+        data = client.fetchDataFromURL("/api/measures/component?metricKeys=reliability_remediation_effort,security_remediation_effort,sqale_index&component=", project);
+        data = data.getJSONObject("component");
 
         headers = new String[]{"Reliability", "Security", "Maintainability", "Total"};
         rows = new ArrayList<>();
@@ -266,12 +240,8 @@ public class ReportBuilder {
         pdf.tittle3Font();
         pdf.addLine("LINES PER LANGUAGE");
 
-        try {
-            data = client.fetchDataFromURL("/api/measures/component?metricKeys=ncloc_language_distribution&component=", project);
-            data = data.getJSONObject("component");
-        } catch (IOException | InterruptedException e) {
-            System.err.println("Error at doing the HTTP petition: " + e.getMessage());
-        }
+        data = client.fetchDataFromURL("/api/measures/component?metricKeys=ncloc_language_distribution&component=", project);
+        data = data.getJSONObject("component");
 
         headers = new String[]{"Language", "Number of Lines", "Total Percent"};
         rows = new ArrayList<>();
@@ -295,14 +265,8 @@ public class ReportBuilder {
         pdf.tittle3Font();
         pdf.addLine("SECURITY HOTSPOTS COUNT BY CATEGORY AND PRIORITY");
 
-        JSONObject data = null;
-        JSONArray dataArray = null;
-        try {
-            data = client.fetchDataFromURL("/api/security_reports/show?standard=sonarsourceSecurity&project=", project);
-            dataArray = data.getJSONArray("categories");
-        } catch (IOException | InterruptedException e) {
-            System.err.println("Error at doing the HTTP petition: " + e.getMessage());
-        }
+        JSONObject data = client.fetchDataFromURL("/api/security_reports/show?standard=sonarsourceSecurity&project=", project);
+        JSONArray dataArray = data.getJSONArray("categories");
 
         String[] headers = {"Categories", "Security", "Security Hotspots"};
         List<String[]> rows = new ArrayList<>();
@@ -326,26 +290,22 @@ public class ReportBuilder {
         pdf.tittle3Font();
         pdf.addLine("SECURITY HOTSPOT LIST");
 
-        try {
-            int pageIndex = 1;
-            int total = Integer.MAX_VALUE;
-            dataArray = new JSONArray();
-            while ((pageIndex - 1) * 500 < total) {
-                data = client.fetchDataFromURL(
-                    String.format("/api/hotspots/search?status=TO_REVIEW&ps=500&pageIndex=%d&project=", pageIndex),
-                    project
-                );
-                JSONArray currentPage = data.getJSONArray("hotspots");
-                for (int i = 0; i < currentPage.length(); i++) {
-                    dataArray.put(currentPage.getJSONObject(i));
-                }
-                if (data.has("paging")) {
-                    total = data.getJSONObject("paging").getInt("total");
-                }
-                pageIndex++;
+        int pageIndex = 1;
+        int total = Integer.MAX_VALUE;
+        dataArray = new JSONArray();
+        while ((pageIndex - 1) * 500 < total) {
+            data = client.fetchDataFromURL(
+                String.format("/api/hotspots/search?status=TO_REVIEW&ps=500&pageIndex=%d&project=", pageIndex),
+                project
+            );
+            JSONArray currentPage = data.getJSONArray("hotspots");
+            for (int i = 0; i < currentPage.length(); i++) {
+                dataArray.put(currentPage.getJSONObject(i));
             }
-        } catch (IOException | InterruptedException e) {
-            System.err.println("Error at doing the HTTP petition: " + e.getMessage());
+            if (data.has("paging")) {
+                total = data.getJSONObject("paging").getInt("total");
+            }
+            pageIndex++;
         }
 
         JSONArray hotspotArray = new JSONArray(groupHotspotsByRule(dataArray).values());
@@ -372,12 +332,7 @@ public class ReportBuilder {
 
         String[][] typeLabels = {{"BUG", "Bug"}, {"VULNERABILITY", "Vulnerability"}, {"CODE_SMELL", "Code Smell"}};
         for (String[] typeLabel : typeLabels) {
-            JSONObject data = null;
-            try {
-                data = client.fetchDataFromURL("/api/issues/search?types=" + typeLabel[0] + "&facets=severities&componentKeys=", project);
-            } catch (IOException | InterruptedException e) {
-                System.err.println("Error at doing the HTTP petition: " + e.getMessage());
-            }
+            JSONObject data = client.fetchDataFromURL("/api/issues/search?types=" + typeLabel[0] + "&facets=severities&componentKeys=", project);
             JSONArray facetValues = data.getJSONArray("facets").getJSONObject(0).getJSONArray("values");
             rows.add(new String[]{
                 typeLabel[1],
@@ -395,25 +350,21 @@ public class ReportBuilder {
         pdf.addLine("ISSUES LIST");
 
         JSONArray dataArray = new JSONArray();
-        try {
-            int pageIndex = 1;
-            int total = Integer.MAX_VALUE;
-            while ((pageIndex - 1) * 500 < total) {
-                JSONObject data = client.fetchDataFromURL(
-                    String.format("/api/issues/search?issueStatuses=OPEN&ps=500&pageIndex=%d&componentKeys=", pageIndex),
-                    project
-                );
-                JSONArray currentPage = data.getJSONArray("issues");
-                for (int i = 0; i < currentPage.length(); i++) {
-                    dataArray.put(currentPage.getJSONObject(i));
-                }
-                if (data.has("paging")) {
-                    total = data.getJSONObject("paging").getInt("total");
-                }
-                pageIndex++;
+        int pageIndex = 1;
+        int total = Integer.MAX_VALUE;
+        while ((pageIndex - 1) * 500 < total) {
+            JSONObject data = client.fetchDataFromURL(
+                String.format("/api/issues/search?issueStatuses=OPEN&ps=500&pageIndex=%d&componentKeys=", pageIndex),
+                project
+            );
+            JSONArray currentPage = data.getJSONArray("issues");
+            for (int i = 0; i < currentPage.length(); i++) {
+                dataArray.put(currentPage.getJSONObject(i));
             }
-        } catch (IOException | InterruptedException e) {
-            System.err.println("Error at doing the HTTP petition: " + e.getMessage());
+            if (data.has("paging")) {
+                total = data.getJSONObject("paging").getInt("total");
+            }
+            pageIndex++;
         }
 
         JSONArray issuesArray = new JSONArray(groupIssuesByRule(dataArray).values());

@@ -59,7 +59,7 @@ public class SonarApiClient {
         }
     }
 
-    public JSONObject fetchDataFromURL(String call, String projectKey) throws IOException, InterruptedException {
+    public JSONObject fetchDataFromURL(String call, String projectKey) throws IOException {
         String encodedProjectKey = URLEncoder.encode(projectKey, StandardCharsets.UTF_8);
         String fullURL = String.format("%s%s%s", apiUrl, call, encodedProjectKey);
         if (branch != null && !branch.isBlank()) {
@@ -71,13 +71,36 @@ public class SonarApiClient {
                 .header("Authorization", "Bearer " + authToken)
                 .build();
 
-        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-        JSONObject json = new JSONObject(response.body());
+        HttpResponse<String> response;
+        try {
+            response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IOException("HTTP request was interrupted: " + fullURL, e);
+        }
 
         if (response.statusCode() >= 200 && response.statusCode() < 300) {
-            return json;
+            return new JSONObject(response.body());
         } else {
-            throw new IOException("Error at obtaining data from the URL: Status Code " + response.statusCode() + ", Body: " + response.body());
+            String body = response.body();
+            String detail = extractSonarError(body);
+            throw new IOException("SonarQube API error (HTTP " + response.statusCode() + ")"
+                + (detail != null ? ": " + detail : " — " + body));
         }
+    }
+
+    private static String extractSonarError(String body) {
+        try {
+            org.json.JSONArray errors = new JSONObject(body).optJSONArray("errors");
+            if (errors != null && errors.length() > 0) {
+                StringBuilder sb = new StringBuilder();
+                for (int i = 0; i < errors.length(); i++) {
+                    if (i > 0) sb.append("; ");
+                    sb.append(errors.getJSONObject(i).optString("msg", "unknown error"));
+                }
+                return sb.toString();
+            }
+        } catch (Exception ignored) {}
+        return null;
     }
 }

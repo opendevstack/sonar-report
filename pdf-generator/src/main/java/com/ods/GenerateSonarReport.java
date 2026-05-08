@@ -1,12 +1,11 @@
 package com.ods;
 
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
 public class GenerateSonarReport {
 
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) {
         Map<String, String> params = parseArgs(args);
 
         String sonarUrl = params.get("--sonar-url");
@@ -21,7 +20,13 @@ public class GenerateSonarReport {
             System.exit(1);
         }
 
-        new ReportBuilder(sonarUrl, token, project, branch).build(output);
+        try {
+            new ReportBuilder(sonarUrl, token, project, branch).build(output);
+        } catch (Exception e) {
+            System.err.println("ERROR: " + e.getMessage());
+            e.printStackTrace(System.err);
+            System.exit(1);
+        }
     }
 
     static Map<String, String> parseArgs(String[] args) {
